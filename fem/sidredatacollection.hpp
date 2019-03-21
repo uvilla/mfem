@@ -17,7 +17,18 @@
 #ifdef MFEM_USE_SIDRE
 
 #include "datacollection.hpp"
+#ifdef MFEM_HAVE_GCC_PRAGMA_DIAGNOSTIC
+# pragma GCC diagnostic push
+# if defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wextra-semi"
+# else // real GCC?
+#  pragma GCC diagnostic ignored "-Wpedantic"
+# endif
+#endif
 #include <sidre/sidre.hpp>
+#ifdef MFEM_HAVE_GCC_PRAGMA_DIAGNOSTIC
+# pragma GCC diagnostic pop
+#endif
 
 namespace mfem
 {
@@ -184,7 +195,7 @@ public:
 
        @param[in] collection_name  Name of the collection used as a file name
                                    when saving
-       @param[in] bp_index_group   Pointer to the blueprint index group in the
+       @param[in] bp_index_grp     Pointer to the blueprint index group in the
                                    datastore, see the above schematic
        @param[in] domain_grp       Pointer to the domain group in the datastore,
                                    see the above schematic
