@@ -20,10 +20,6 @@
 #include <cuda.h>
 #endif
 
-// Maximum size of dofs and quads in 1D.
-const int MAX_D1D = 16;
-const int MAX_Q1D = 16;
-
 // CUDA block size used by MFEM.
 #define MFEM_CUDA_BLOCKS 256
 
@@ -33,11 +29,12 @@ const int MAX_Q1D = 16;
 // Define a CUDA error check macro, MFEM_CUDA_CHECK(x), where x returns/is of
 // type 'cudaError_t'. This macro evaluates 'x' and raises an error if the
 // result is not cudaSuccess.
+// FIXME: remove the 'cudaErrorCudartUnloading' suppression
 #define MFEM_CUDA_CHECK(x) \
    do \
    { \
       cudaError_t err = (x); \
-      if (err != cudaSuccess) \
+      if (err != cudaSuccess && err != cudaErrorCudartUnloading) \
       { \
          mfem_cuda_error(err, #x, _MFEM_FUNC_NAME, __FILE__, __LINE__); \
       } \
@@ -51,6 +48,7 @@ const int MAX_Q1D = 16;
 #else // __CUDA_ARCH__
 #define MFEM_SHARED
 #define MFEM_SYNC_THREAD
+// FIXME: add prefix MFEM_ ?
 #define blockDim(x) 1
 #define threadIdx(x) 0
 #endif // __CUDA_ARCH__
@@ -86,16 +84,16 @@ void* CuMemcpyHtoD(void *d_dst, const void *h_src, size_t bytes);
 void* CuMemcpyHtoDAsync(void *d_dst, const void *h_src, size_t bytes);
 
 /// Copies memory from Device to Device
-void* CuMemcpyDtoD(void *d_dst, void *d_src, size_t bytes);
+void* CuMemcpyDtoD(void *d_dst, const void *d_src, size_t bytes);
 
 /// Copies memory from Device to Device
-void* CuMemcpyDtoDAsync(void *d_dst, void *d_src, size_t bytes);
+void* CuMemcpyDtoDAsync(void *d_dst, const void *d_src, size_t bytes);
 
 /// Copies memory from Device to Host
-void* CuMemcpyDtoH(void *h_dst, void *d_src, size_t bytes);
+void* CuMemcpyDtoH(void *h_dst, const void *d_src, size_t bytes);
 
 /// Copies memory from Device to Host
-void* CuMemcpyDtoHAsync(void *h_dst, void *d_src, size_t bytes);
+void* CuMemcpyDtoHAsync(void *h_dst, const void *d_src, size_t bytes);
 
 } // namespace mfem
 

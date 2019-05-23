@@ -24,7 +24,10 @@ namespace mfem
 namespace internal
 {
 
-OccaDevice occaDevice;
+#ifdef MFEM_USE_OCCA
+// Default occa::device used by MFEM.
+occa::device occaDevice;
+#endif
 
 // Backends listed by priority, high to low:
 static const Backend::Id backend_list[Backend::NUM_BACKENDS] =
@@ -42,6 +45,11 @@ static const char *backend_name[Backend::NUM_BACKENDS] =
 };
 
 } // namespace mfem::internal
+
+
+// Initialize the unique global Device variable.
+Device Device::device_singleton;
+
 
 void Device::Configure(const std::string &device, const int dev)
 {
@@ -76,6 +84,9 @@ void Device::Configure(const std::string &device, const int dev)
 
    // Enable only the default host CPU backend.
    Get().allowed_backends = Backend::CPU;
+
+   // Enable the device
+   Enable();
 }
 
 void Device::Print(std::ostream &out)
@@ -92,6 +103,37 @@ void Device::Print(std::ostream &out)
       }
    }
    out << '\n';
+}
+
+void Device::UpdateMemoryTypeAndClass()
+{
+   if (Device::Allows(Backend::CUDA_MASK))
+   {
+      mem_type = MemoryType::CUDA;
+      mem_class = MemoryClass::CUDA;
+   }
+   else
+   {
+      mem_type = MemoryType::HOST;
+      mem_class = MemoryClass::HOST;
+   }
+}
+
+void Device::Enable()
+{
+   if (Get().backends & ~Backend::CPU)
+   {
+      Get().mode = Device::ACCELERATED;
+      Get().allowed_backends = Get().backends;
+      Get().UpdateMemoryTypeAndClass();
+   }
+}
+
+void Device::Disable()
+{
+   Get().mode = Device::SEQUENTIAL;
+   Get().allowed_backends = Backend::CPU;
+   Get().UpdateMemoryTypeAndClass();
 }
 
 #ifdef MFEM_USE_CUDA

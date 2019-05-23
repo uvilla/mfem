@@ -369,8 +369,8 @@ void ParGridFunction::ProjectDiscCoefficient(Coefficient &coeff, AvgType type)
    gcomm.Bcast(zones_per_vdof);
 
    // Accumulate for all vdofs.
-   gcomm.Reduce(data, GroupCommunicator::Sum);
-   gcomm.Bcast(data);
+   gcomm.Reduce<double>(data, GroupCommunicator::Sum);
+   gcomm.Bcast<double>(data);
 
    ComputeMeans(type, zones_per_vdof);
 }
@@ -391,8 +391,8 @@ void ParGridFunction::ProjectDiscCoefficient(VectorCoefficient &vcoeff,
    gcomm.Bcast(zones_per_vdof);
 
    // Accumulate for all vdofs.
-   gcomm.Reduce(data, GroupCommunicator::Sum);
-   gcomm.Bcast(data);
+   gcomm.Reduce<double>(data, GroupCommunicator::Sum);
+   gcomm.Bcast<double>(data);
 
    ComputeMeans(type, zones_per_vdof);
 }
@@ -487,16 +487,17 @@ void ParGridFunction::ProjectBdrCoefficientTangent(VectorCoefficient &vcoeff,
 
 void ParGridFunction::Save(std::ostream &out) const
 {
+   double *data_  = const_cast<double*>(ReadAccess(false));
    for (int i = 0; i < size; i++)
    {
-      if (pfes->GetDofSign(i) < 0) { data[i] = -data[i]; }
+      if (pfes->GetDofSign(i) < 0) { data_[i] = -data_[i]; }
    }
 
    GridFunction::Save(out);
 
    for (int i = 0; i < size; i++)
    {
-      if (pfes->GetDofSign(i) < 0) { data[i] = -data[i]; }
+      if (pfes->GetDofSign(i) < 0) { data_[i] = -data_[i]; }
    }
 }
 

@@ -211,9 +211,6 @@ ifneq ($(MFEM_USE_CUDA),YES)
    XCOMPILER = $(CXX_XCOMPILER)
    XLINKER   = $(CXX_XLINKER)
 else
-   ifneq ($(MFEM_USE_MM),YES)
-      $(error MFEM_USE_CUDA=YES requires MFEM_USE_MM=YES)
-   endif
    MFEM_CXX ?= $(CUDA_CXX)
    CXXFLAGS += $(CUDA_FLAGS) -ccbin $(CXX_OR_MPICXX)
    XCOMPILER = $(CUDA_XCOMPILER)
@@ -223,12 +220,14 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-# Check OpenMP configuration
+# Check legacy OpenMP configuration
 ifeq ($(MFEM_USE_LEGACY_OPENMP),YES)
    MFEM_THREAD_SAFE ?= YES
    ifneq ($(MFEM_THREAD_SAFE),YES)
       $(error Incompatible config: MFEM_USE_LEGACY_OPENMP requires MFEM_THREAD_SAFE)
    endif
+   # FIXME: MFEM_USE_LEGACY_OPENMP cannot be combined with any of:
+   # MFEM_USE_OPENMP, MFEM_USE_CUDA, MFEM_USE_RAJA, MFEM_USE_OCCA
 endif
 
 # List of MFEM dependencies, that require the *_LIB variable to be non-empty
@@ -294,8 +293,7 @@ MFEM_DEFINES = MFEM_VERSION MFEM_VERSION_STRING MFEM_GIT_STRING MFEM_USE_MPI\
  MFEM_USE_SUNDIALS MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO\
  MFEM_USE_SUPERLU MFEM_USE_STRUMPACK MFEM_USE_GNUTLS MFEM_USE_NETCDF\
  MFEM_USE_PETSC MFEM_USE_MPFR MFEM_USE_SIDRE MFEM_USE_CONDUIT MFEM_USE_PUMI\
- MFEM_USE_CUDA MFEM_USE_OCCA MFEM_USE_MM MFEM_USE_RAJA MFEM_SOURCE_DIR\
- MFEM_INSTALL_DIR
+ MFEM_USE_CUDA MFEM_USE_OCCA MFEM_USE_RAJA MFEM_SOURCE_DIR MFEM_INSTALL_DIR
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -421,13 +419,11 @@ $(BLD)libmfem.$(SO_VER): $(OBJECT_FILES)
 	   $(EXT_LIBS) -o $(@)
 
 # Shortcut targets options
-serial parallel debug pdebug:   M_MM=NO
 serial debug cuda cudebug:      M_MPI=NO
 parallel pdebug pcuda pcudebug: M_MPI=YES
 serial parallel cuda pcuda:     M_DBG=NO
 debug pdebug cudebug pcudebug:  M_DBG=YES
 cuda pcuda cudebug pcudebug:    M_CUDA=YES
-cuda pcuda cudebug pcudebug:    M_MM=YES
 
 serial parallel debug pdebug:
 	$(MAKE) -f $(THIS_MK) config MFEM_USE_MPI=$(M_MPI) MFEM_DEBUG=$(M_DBG) \
@@ -436,7 +432,7 @@ serial parallel debug pdebug:
 
 cuda pcuda cudebug pcudebug:
 	$(MAKE) -f $(THIS_MK) config MFEM_USE_MPI=$(M_MPI) MFEM_DEBUG=$(M_DBG) \
-	   MFEM_USE_CUDA=$(M_CUDA) MFEM_USE_MM=$(M_MM) $(MAKEOVERRIDES_SAVE)
+	   MFEM_USE_CUDA=$(M_CUDA) $(MAKEOVERRIDES_SAVE)
 	$(MAKE) $(MAKEOVERRIDES_SAVE)
 
 deps:
@@ -592,7 +588,6 @@ status info:
 	$(info MFEM_USE_CUDA          = $(MFEM_USE_CUDA))
 	$(info MFEM_USE_RAJA          = $(MFEM_USE_RAJA))
 	$(info MFEM_USE_OCCA          = $(MFEM_USE_OCCA))
-	$(info MFEM_USE_MM            = $(MFEM_USE_MM))
 	$(info MFEM_CXX               = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS          = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS          = $(value MFEM_CXXFLAGS))
