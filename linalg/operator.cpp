@@ -130,7 +130,7 @@ RAPOperator::RAPOperator(const Operator &Rt_, const Operator &A_,
                << ", P.Height() = " << P.Height());
 
    mem_class = Rt.GetMemoryClass()*P.GetMemoryClass();
-   MemoryType mem_type = GetSuitableMemoryType(A.GetMemoryClass()*mem_class);
+   MemoryType mem_type = GetMemoryType(A.GetMemoryClass()*mem_class);
    Px.SetSize(P.Height(), mem_type);
    APx.SetSize(A.Height(), mem_type);
 }
@@ -151,7 +151,7 @@ TripleProductOperator::TripleProductOperator(
                << ", C->Height() = " << C->Height());
 
    mem_class = A->GetMemoryClass()*C->GetMemoryClass();
-   MemoryType mem_type = GetSuitableMemoryType(mem_class*B->GetMemoryClass());
+   MemoryType mem_type = GetMemoryType(mem_class*B->GetMemoryClass());
    t1.SetSize(C->Height(), mem_type);
    t2.SetSize(B->Height(), mem_type);
 }
@@ -170,20 +170,21 @@ ConstrainedOperator::ConstrainedOperator(Operator *A, const Array<int> &list,
 {
    // 'mem_class' should work with A->Mult() and MFEM_FORALL():
    mem_class = A->GetMemoryClass()*Device::GetMemoryClass();
-   MemoryType mem_type = GetSuitableMemoryType(mem_class);
+   MemoryType mem_type = GetMemoryType(mem_class);
    constraint_list.MakeRef(list);
-   z.SetSize(height, mem_type); z.UseDevice();
-   w.SetSize(height, mem_type); w.UseDevice();
+   // typically z and w are large vectors, so store them on the device
+   z.SetSize(height, mem_type); z.UseDevice(true);
+   w.SetSize(height, mem_type); w.UseDevice(true);
 }
 
 void ConstrainedOperator::EliminateRHS(const Vector &x, Vector &b) const
 {
    w = 0.0;
    const int csz = constraint_list.Size();
-   auto idx = constraint_list.ReadAccess();
-   auto d_x = x.ReadAccess();
+   auto idx = constraint_list.Read();
+   auto d_x = x.Read();
    // Use read+write access - we are modifying sub-vector of w
-   auto d_w = w.ReadWriteAccess();
+   auto d_w = w.ReadWrite();
    MFEM_FORALL(i, csz,
    {
       const int id = idx[i];
@@ -194,7 +195,7 @@ void ConstrainedOperator::EliminateRHS(const Vector &x, Vector &b) const
 
    b -= z;
    // Use read+write access - we are modifying sub-vector of b
-   auto d_b = b.ReadWriteAccess();
+   auto d_b = b.ReadWrite();
    MFEM_FORALL(i, csz,
    {
       const int id = idx[i];
@@ -213,16 +214,16 @@ void ConstrainedOperator::Mult(const Vector &x, Vector &y) const
 
    z = x;
 
-   auto idx = constraint_list.ReadAccess();
+   auto idx = constraint_list.Read();
    // Use read+write access - we are modifying sub-vector of z
-   auto d_z = z.ReadWriteAccess();
+   auto d_z = z.ReadWrite();
    MFEM_FORALL(i, csz, d_z[idx[i]] = 0.0;);
 
    A->Mult(z, y);
 
-   auto d_x = x.ReadAccess();
+   auto d_x = x.Read();
    // Use read+write access - we are modifying sub-vector of y
-   auto d_y = y.ReadWriteAccess();
+   auto d_y = y.ReadWrite();
    MFEM_FORALL(i, csz,
    {
       const int id = idx[i];

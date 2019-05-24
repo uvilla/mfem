@@ -84,9 +84,11 @@ static void PADiffusionSetup2D(const int Q1D,
                                Vector &op)
 {
    const int NQ = Q1D*Q1D;
-   auto W = w.ReadAccess();
-   auto J = Reshape(j.ReadAccess(), NQ, 2, 2, NE);
-   auto y = Reshape(op.WriteAccess(), NQ, 3, NE);
+   auto W = w.Read();
+
+   auto J = Reshape(j.Read(), NQ, 2, 2, NE);
+   auto y = Reshape(op.Write(), NQ, 3, NE);
+
    MFEM_FORALL(e, NE,
    {
       for (int q = 0; q < NQ; ++q)
@@ -112,9 +114,9 @@ static void PADiffusionSetup3D(const int Q1D,
                                Vector &op)
 {
    const int NQ = Q1D*Q1D*Q1D;
-   auto W = w.ReadAccess();
-   auto J = Reshape(j.ReadAccess(), NQ, 3, 3, NE);
-   auto y = Reshape(op.WriteAccess(), NQ, 6, NE);
+   auto W = w.Read();
+   auto J = Reshape(j.Read(), NQ, 3, 3, NE);
+   auto y = Reshape(op.Write(), NQ, 6, NE);
    MFEM_FORALL(e, NE,
    {
       for (int q = 0; q < NQ; ++q)
@@ -327,17 +329,18 @@ void PADiffusionApply2D(const int NE,
    const int Q1D = T_Q1D ? T_Q1D : q1d;
    MFEM_VERIFY(D1D <= MAX_D1D, "");
    MFEM_VERIFY(Q1D <= MAX_Q1D, "");
-   auto B = Reshape(b.ReadAccess(), Q1D, D1D);
-   auto G = Reshape(g.ReadAccess(), Q1D, D1D);
-   auto Bt = Reshape(bt.ReadAccess(), D1D, Q1D);
-   auto Gt = Reshape(gt.ReadAccess(), D1D, Q1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D*Q1D, 3, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, NE);
+   auto B = Reshape(b.Read(), Q1D, D1D);
+   auto G = Reshape(g.Read(), Q1D, D1D);
+   auto Bt = Reshape(bt.Read(), D1D, Q1D);
+   auto Gt = Reshape(gt.Read(), D1D, Q1D);
+   auto op = Reshape(_op.Read(), Q1D*Q1D, 3, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, NE);
    MFEM_FORALL(e, NE,
    {
       const int D1D = T_D1D ? T_D1D : d1d;
       const int Q1D = T_Q1D ? T_Q1D : q1d;
+      // the following variables are evaluated at compile time
       constexpr int max_D1D = T_D1D ? T_D1D : MAX_D1D;
       constexpr int max_Q1D = T_Q1D ? T_Q1D : MAX_Q1D;
 
@@ -451,13 +454,14 @@ static void SmemPADiffusionApply2D(const int NE,
    constexpr int MD1 = T_D1D ? T_D1D : MAX_D1D;
    MFEM_VERIFY(D1D <= MD1, "");
    MFEM_VERIFY(Q1D <= MQ1, "");
-   auto b = Reshape(_b.ReadAccess(), Q1D, D1D);
-   auto g = Reshape(_g.ReadAccess(), Q1D, D1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D*Q1D, 3, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, NE);
+   auto b = Reshape(_b.Read(), Q1D, D1D);
+   auto g = Reshape(_g.Read(), Q1D, D1D);
+   auto op = Reshape(_op.Read(), Q1D*Q1D, 3, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, NE);
    MFEM_FORALL_2D(e, NE, Q1D, Q1D, NBZ,
    {
+      const int tidz = MFEM_THREAD_ID(z);
       const int D1D = T_D1D ? T_D1D : d1d;
       const int Q1D = T_Q1D ? T_Q1D : q1d;
       constexpr int NBZ = T_NBZ ? T_NBZ : 1;
@@ -471,33 +475,33 @@ static void SmemPADiffusionApply2D(const int NE,
       MFEM_SHARED double Xz[NBZ][MD1][MD1];
       MFEM_SHARED double GD[2][NBZ][MD1][MQ1];
       MFEM_SHARED double GQ[2][NBZ][MD1][MQ1];
-      double (*X)[MD1] = (double (*)[MD1])(Xz + threadIdx(z));
-      double (*DQ0)[MD1] = (double (*)[MD1])(GD[0] + threadIdx(z));
-      double (*DQ1)[MD1] = (double (*)[MD1])(GD[1] + threadIdx(z));
-      double (*QQ0)[MD1] = (double (*)[MD1])(GQ[0] + threadIdx(z));
-      double (*QQ1)[MD1] = (double (*)[MD1])(GQ[1] + threadIdx(z));
-      for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+      double (*X)[MD1] = (double (*)[MD1])(Xz + tidz);
+      double (*DQ0)[MD1] = (double (*)[MD1])(GD[0] + tidz);
+      double (*DQ1)[MD1] = (double (*)[MD1])(GD[1] + tidz);
+      double (*QQ0)[MD1] = (double (*)[MD1])(GQ[0] + tidz);
+      double (*QQ1)[MD1] = (double (*)[MD1])(GQ[1] + tidz);
+      MFEM_FOREACH_THREAD(dy,y,D1D)
       {
-         for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+         MFEM_FOREACH_THREAD(dx,x,D1D)
          {
             X[dy][dx] = x(dx,dy,e);
          }
       }
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dx = threadIdx(y); dx < D1D; dx += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               B[qx][dx] = b(qx,dx);
-               G[qx][dx] = g(qx,dx);
+               B[q][d] = b(q,d);
+               G[q][d] = g(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+      MFEM_FOREACH_THREAD(dy,y,D1D)
       {
-         for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+         MFEM_FOREACH_THREAD(qx,x,Q1D)
          {
             double u = 0.0;
             double v = 0.0;
@@ -512,9 +516,9 @@ static void SmemPADiffusionApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+      MFEM_FOREACH_THREAD(qy,y,Q1D)
       {
-         for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+         MFEM_FOREACH_THREAD(qx,x,Q1D)
          {
             double u = 0.0;
             double v = 0.0;
@@ -528,9 +532,9 @@ static void SmemPADiffusionApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+      MFEM_FOREACH_THREAD(qy,y,Q1D)
       {
-         for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+         MFEM_FOREACH_THREAD(qx,x,Q1D)
          {
             const int q = (qx + ((qy) * Q1D));
             const double O11 = op(q,0,e);
@@ -543,21 +547,21 @@ static void SmemPADiffusionApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dx = threadIdx(y); dx < D1D; dx += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               Bt[dx][qx] = b(qx,dx);
-               Gt[dx][qx] = g(qx,dx);
+               Bt[d][q] = b(q,d);
+               Gt[d][q] = g(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+      MFEM_FOREACH_THREAD(qy,y,Q1D)
       {
-         for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+         MFEM_FOREACH_THREAD(dx,x,D1D)
          {
             double u = 0.0;
             double v = 0.0;
@@ -571,9 +575,9 @@ static void SmemPADiffusionApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+      MFEM_FOREACH_THREAD(dy,y,D1D)
       {
-         for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+         MFEM_FOREACH_THREAD(dx,x,D1D)
          {
             double u = 0.0;
             double v = 0.0;
@@ -590,7 +594,8 @@ static void SmemPADiffusionApply2D(const int NE,
 
 
 // PA Diffusion Apply 3D kernel
-template<int T_D1D = 0, int T_Q1D = 0> static
+template<const int T_D1D = 0,
+         const int T_Q1D = 0> static
 void PADiffusionApply3D(const int NE,
                         const Array<double> &b,
                         const Array<double> &g,
@@ -605,13 +610,13 @@ void PADiffusionApply3D(const int NE,
    const int Q1D = T_Q1D ? T_Q1D : q1d;
    MFEM_VERIFY(D1D <= MAX_D1D, "");
    MFEM_VERIFY(Q1D <= MAX_Q1D, "");
-   auto B = Reshape(b.ReadAccess(), Q1D, D1D);
-   auto G = Reshape(g.ReadAccess(), Q1D, D1D);
-   auto Bt = Reshape(bt.ReadAccess(), D1D, Q1D);
-   auto Gt = Reshape(gt.ReadAccess(), D1D, Q1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D*Q1D*Q1D, 6, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, D1D, NE);
+   auto B = Reshape(b.Read(), Q1D, D1D);
+   auto G = Reshape(g.Read(), Q1D, D1D);
+   auto Bt = Reshape(bt.Read(), D1D, Q1D);
+   auto Gt = Reshape(gt.Read(), D1D, Q1D);
+   auto op = Reshape(_op.Read(), Q1D*Q1D*Q1D, 6, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, D1D, NE);
    MFEM_FORALL(e, NE,
    {
       const int D1D = T_D1D ? T_D1D : d1d;
@@ -779,8 +784,8 @@ void PADiffusionApply3D(const int NE,
 }
 
 // Shared memory PA Diffusion Apply 3D kernel
-template<int T_D1D = 0,
-         int T_Q1D = 0>
+template<const int T_D1D = 0,
+         const int T_Q1D = 0>
 static void SmemPADiffusionApply3D(const int NE,
                                    const Array<double> &_b,
                                    const Array<double> &_g,
@@ -798,13 +803,14 @@ static void SmemPADiffusionApply3D(const int NE,
    constexpr int MD1 = T_D1D ? T_D1D : MAX_D1D;
    MFEM_VERIFY(D1D <= MD1, "");
    MFEM_VERIFY(Q1D <= MQ1, "");
-   auto b = Reshape(_b.ReadAccess(), Q1D, D1D);
-   auto g = Reshape(_g.ReadAccess(), Q1D, D1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D*Q1D*Q1D, 6, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, D1D, NE);
+   auto b = Reshape(_b.Read(), Q1D, D1D);
+   auto g = Reshape(_g.Read(), Q1D, D1D);
+   auto op = Reshape(_op.Read(), Q1D*Q1D*Q1D, 6, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, D1D, NE);
    MFEM_FORALL_3D(e, NE, Q1D, Q1D, Q1D,
    {
+      const int tidz = MFEM_THREAD_ID(z);
       const int D1D = T_D1D ? T_D1D : d1d;
       const int Q1D = T_Q1D ? T_Q1D : q1d;
       constexpr int MQ1 = T_Q1D ? T_Q1D : MAX_Q1D;
@@ -832,33 +838,33 @@ static void SmemPADiffusionApply3D(const int NE,
       double (*QDD0)[MD1][MD1] = (double (*)[MD1][MD1]) (sm0+0);
       double (*QDD1)[MD1][MD1] = (double (*)[MD1][MD1]) (sm0+1);
       double (*QDD2)[MD1][MD1] = (double (*)[MD1][MD1]) (sm0+2);
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                X[dz][dy][dx] = x(dx,dy,dz,e);
             }
          }
       }
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dx = threadIdx(y); dx < D1D; dx += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               B[qx][dx] = b(qx,dx);
-               G[qx][dx] = g(qx,dx);
+               B[q][d] = b(q,d);
+               G[q][d] = g(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                double u = 0.0;
                double v = 0.0;
@@ -874,11 +880,11 @@ static void SmemPADiffusionApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                double u = 0.0;
                double v = 0.0;
@@ -896,11 +902,11 @@ static void SmemPADiffusionApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                double u = 0.0;
                double v = 0.0;
@@ -918,11 +924,11 @@ static void SmemPADiffusionApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                const int q = qx + ((qy*Q1D) + (qz*Q1D*Q1D));
                const double O11 = op(q,0,e);
@@ -941,23 +947,23 @@ static void SmemPADiffusionApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dx = threadIdx(y); dx < D1D; dx += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               Bt[dx][qx] = b(qx,dx);
-               Gt[dx][qx] = g(qx,dx);
+               Bt[d][q] = b(q,d);
+               Gt[d][q] = g(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                double u = 0.0;
                double v = 0.0;
@@ -975,11 +981,11 @@ static void SmemPADiffusionApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                double u = 0.0;
                double v = 0.0;
@@ -997,11 +1003,11 @@ static void SmemPADiffusionApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                double u = 0.0;
                double v = 0.0;

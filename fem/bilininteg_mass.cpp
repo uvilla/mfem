@@ -54,9 +54,9 @@ void MassIntegrator::AssemblePA(const FiniteElementSpace &fes)
       }
       const int NE = ne;
       const int NQ = nq;
-      auto w = ir->GetWeights().ReadAccess();
-      auto J = Reshape(geom->J.ReadAccess(), NQ,2,2,NE);
-      auto v = Reshape(pa_data.WriteAccess(), NQ, NE);
+      auto w = ir->GetWeights().Read();
+      auto J = Reshape(geom->J.Read(), NQ,2,2,NE);
+      auto v = Reshape(pa_data.Write(), NQ, NE);
       MFEM_FORALL(e, NE,
       {
          for (int q = 0; q < NQ; ++q)
@@ -83,9 +83,9 @@ void MassIntegrator::AssemblePA(const FiniteElementSpace &fes)
       }
       const int NE = ne;
       const int NQ = nq;
-      auto W = ir->GetWeights().ReadAccess();
-      auto J = Reshape(geom->J.ReadAccess(), NQ,3,3,NE);
-      auto v = Reshape(pa_data.WriteAccess(), NQ,NE);
+      auto W = ir->GetWeights().Read();
+      auto J = Reshape(geom->J.Read(), NQ,3,3,NE);
+      auto v = Reshape(pa_data.Write(), NQ,NE);
       MFEM_FORALL(e, NE,
       {
          for (int q = 0; q < NQ; ++q)
@@ -209,15 +209,16 @@ static void PAMassApply2D(const int NE,
    const int Q1D = T_Q1D ? T_Q1D : q1d;
    MFEM_VERIFY(D1D <= MAX_D1D, "");
    MFEM_VERIFY(Q1D <= MAX_Q1D, "");
-   auto B = Reshape(_B.ReadAccess(), Q1D, D1D);
-   auto Bt = Reshape(_Bt.ReadAccess(), D1D, Q1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D, Q1D, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, NE);
+   auto B = Reshape(_B.Read(), Q1D, D1D);
+   auto Bt = Reshape(_Bt.Read(), D1D, Q1D);
+   auto op = Reshape(_op.Read(), Q1D, Q1D, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, NE);
    MFEM_FORALL(e, NE,
    {
-      const int D1D = T_D1D ? T_D1D : d1d;
+      const int D1D = T_D1D ? T_D1D : d1d; // nvcc workaround
       const int Q1D = T_Q1D ? T_Q1D : q1d;
+      // the following variables are evaluated at compile time
       constexpr int max_D1D = T_D1D ? T_D1D : MAX_D1D;
       constexpr int max_Q1D = T_Q1D ? T_Q1D : MAX_Q1D;
       double sol_xy[max_Q1D][max_Q1D];
@@ -305,12 +306,13 @@ static void SmemPAMassApply2D(const int NE,
    constexpr int MD1 = T_D1D ? T_D1D : MAX_D1D;
    MFEM_VERIFY(D1D <= MD1, "");
    MFEM_VERIFY(Q1D <= MQ1, "");
-   auto b = Reshape(_b.ReadAccess(), Q1D, D1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D, Q1D, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, NE);
+   auto b = Reshape(_b.Read(), Q1D, D1D);
+   auto op = Reshape(_op.Read(), Q1D, Q1D, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, NE);
    MFEM_FORALL_2D(e, NE, Q1D, Q1D, NBZ,
    {
+      const int tidz = MFEM_THREAD_ID(z);
       const int D1D = T_D1D ? T_D1D : d1d;
       const int Q1D = T_Q1D ? T_Q1D : q1d;
       constexpr int NBZ = T_NBZ ? T_NBZ : 1;
@@ -322,31 +324,31 @@ static void SmemPAMassApply2D(const int NE,
       double (*Bt)[MQ1] = (double (*)[MQ1]) BBt;
       MFEM_SHARED double sm0[NBZ][MDQ*MDQ];
       MFEM_SHARED double sm1[NBZ][MDQ*MDQ];
-      double (*X)[MD1] = (double (*)[MD1]) (sm0 + threadIdx(z));
-      double (*DQ)[MQ1] = (double (*)[MQ1]) (sm1 + threadIdx(z));
-      double (*QQ)[MQ1] = (double (*)[MQ1]) (sm0 + threadIdx(z));
-      double (*QD)[MD1] = (double (*)[MD1]) (sm1 + threadIdx(z));
-      for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+      double (*X)[MD1] = (double (*)[MD1]) (sm0 + tidz);
+      double (*DQ)[MQ1] = (double (*)[MQ1]) (sm1 + tidz);
+      double (*QQ)[MQ1] = (double (*)[MQ1]) (sm0 + tidz);
+      double (*QD)[MD1] = (double (*)[MD1]) (sm1 + tidz);
+      MFEM_FOREACH_THREAD(dy,y,D1D)
       {
-         for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+         MFEM_FOREACH_THREAD(dx,x,D1D)
          {
             X[dy][dx] = x(dx,dy,e);
          }
       }
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(y))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               B[qx][dy] = b(qx,dy);
+               B[q][d] = b(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+      MFEM_FOREACH_THREAD(dy,y,D1D)
       {
-         for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+         MFEM_FOREACH_THREAD(qx,x,Q1D)
          {
             double dq = 0.0;
             for (int dx = 0; dx < D1D; ++dx)
@@ -357,9 +359,9 @@ static void SmemPAMassApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+      MFEM_FOREACH_THREAD(qy,y,Q1D)
       {
-         for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+         MFEM_FOREACH_THREAD(qx,x,Q1D)
          {
             double qq = 0.0;
             for (int dy = 0; dy < D1D; ++dy)
@@ -370,20 +372,20 @@ static void SmemPAMassApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               Bt[dy][qx] = b(qx,dy);
+               Bt[d][q] = b(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+      MFEM_FOREACH_THREAD(qy,y,Q1D)
       {
-         for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+         MFEM_FOREACH_THREAD(dx,x,D1D)
          {
             double dq = 0.0;
             for (int qx = 0; qx < Q1D; ++qx)
@@ -394,9 +396,9 @@ static void SmemPAMassApply2D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dy = threadIdx(y); dy < D1D; dy += blockDim(x))
+      MFEM_FOREACH_THREAD(dy,y,D1D)
       {
-         for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+         MFEM_FOREACH_THREAD(dx,x,D1D)
          {
             double dd = 0.0;
             for (int qy = 0; qy < Q1D; ++qy)
@@ -424,11 +426,11 @@ static void PAMassApply3D(const int NE,
    const int Q1D = T_Q1D ? T_Q1D : q1d;
    MFEM_VERIFY(D1D <= MAX_D1D, "");
    MFEM_VERIFY(Q1D <= MAX_Q1D, "");
-   auto B = Reshape(_B.ReadAccess(), Q1D, D1D);
-   auto Bt = Reshape(_Bt.ReadAccess(), D1D, Q1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D, Q1D, Q1D, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, D1D, NE);
+   auto B = Reshape(_B.Read(), Q1D, D1D);
+   auto Bt = Reshape(_Bt.Read(), D1D, Q1D);
+   auto op = Reshape(_op.Read(), Q1D, Q1D, Q1D, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, D1D, NE);
    MFEM_FORALL(e, NE,
    {
       const int D1D = T_D1D ? T_D1D : d1d;
@@ -568,12 +570,13 @@ static void SmemPAMassApply3D(const int NE,
    constexpr int M1D = T_D1D ? T_D1D : MAX_D1D;
    MFEM_VERIFY(D1D <= M1D, "");
    MFEM_VERIFY(Q1D <= M1Q, "");
-   auto b = Reshape(_b.ReadAccess(), Q1D, D1D);
-   auto op = Reshape(_op.ReadAccess(), Q1D, Q1D, Q1D, NE);
-   auto x = Reshape(_x.ReadAccess(), D1D, D1D, D1D, NE);
-   auto y = Reshape(_y.ReadWriteAccess(), D1D, D1D, D1D, NE);
+   auto b = Reshape(_b.Read(), Q1D, D1D);
+   auto op = Reshape(_op.Read(), Q1D, Q1D, Q1D, NE);
+   auto x = Reshape(_x.Read(), D1D, D1D, D1D, NE);
+   auto y = Reshape(_y.ReadWrite(), D1D, D1D, D1D, NE);
    MFEM_FORALL_3D(e, NE, Q1D, Q1D, Q1D,
    {
+      const int tidz = MFEM_THREAD_ID(z);
       const int D1D = T_D1D ? T_D1D : d1d;
       const int Q1D = T_Q1D ? T_Q1D : q1d;
       constexpr int MQ1 = T_Q1D ? T_Q1D : MAX_Q1D;
@@ -590,32 +593,32 @@ static void SmemPAMassApply3D(const int NE,
       double (*QQQ)[MQ1][MQ1] = (double (*)[MQ1][MQ1]) sm1;
       double (*QQD)[MQ1][MD1] = (double (*)[MQ1][MD1]) sm0;
       double (*QDD)[MD1][MD1] = (double (*)[MD1][MD1]) sm1;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                X[dz][dy][dx] = x(dx,dy,dz,e);
             }
          }
       }
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               B[qx][dy] = b(qx,dy);
+               B[q][d] = b(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                double u = 0.0;
                for (int dx = 0; dx < D1D; ++dx)
@@ -627,11 +630,11 @@ static void SmemPAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                double u = 0.0;
                for (int dy = 0; dy < D1D; ++dy)
@@ -643,11 +646,11 @@ static void SmemPAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
             {
                double u = 0.0;
                for (int dz = 0; dz < D1D; ++dz)
@@ -659,22 +662,22 @@ static void SmemPAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      if (threadIdx(z) == 0)
+      if (tidz == 0)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(d,y,D1D)
          {
-            for (int qx = threadIdx(x); qx < Q1D; qx += blockDim(x))
+            MFEM_FOREACH_THREAD(q,x,Q1D)
             {
-               Bt[dy][qx] = b(qx,dy);
+               Bt[d][q] = b(q,d);
             }
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int qy = threadIdx(y); qy < Q1D; qy += blockDim(y))
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                double u = 0.0;
                for (int qx = 0; qx < Q1D; ++qx)
@@ -686,11 +689,11 @@ static void SmemPAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int qz = threadIdx(z); qz < Q1D; qz += blockDim(z))
+      MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                double u = 0.0;
                for (int qy = 0; qy < Q1D; ++qy)
@@ -702,11 +705,11 @@ static void SmemPAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
-      for (int dz = threadIdx(z); dz < D1D; dz += blockDim(z))
+      MFEM_FOREACH_THREAD(dz,z,D1D)
       {
-         for (int dy = threadIdx(y); dy < D1D; dy += blockDim(y))
+         MFEM_FOREACH_THREAD(dy,y,D1D)
          {
-            for (int dx = threadIdx(x); dx < D1D; dx += blockDim(x))
+            MFEM_FOREACH_THREAD(dx,x,D1D)
             {
                double u = 0.0;
                for (int qz = 0; qz < Q1D; ++qz)
