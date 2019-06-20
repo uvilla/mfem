@@ -22,6 +22,9 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include "../general/gzstream.hpp"
+#ifdef MFEM_USE_ADIOS2
+#include "../general/adios2stream.hpp"
+#endif
 #include <iostream>
 
 namespace mfem
@@ -49,6 +52,10 @@ class Mesh
    friend class ParNCMesh;
 #endif
    friend class NURBSExtension;
+
+#ifdef MFEM_USE_ADIOS2
+   friend class adios2stream;
+#endif
 
 protected:
    int Dim;
@@ -1151,6 +1158,10 @@ public:
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    virtual void Print(std::ostream &out = mfem::out) const { Printer(out); }
 
+   /// Print the mesh to the given stream using the adios2 bp format
+#ifdef MFEM_USE_ADIOS2
+   virtual void Print(adios2stream &out) const;
+#endif
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintVTK(std::ostream &out);

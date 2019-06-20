@@ -298,6 +298,11 @@ if (MFEM_USE_RAJA)
    find_package(RAJA REQUIRED)
 endif()
 
+# ADIOS2 for parallel I/O
+if (MFEM_USE_ADIOS2)
+   find_package(ADIOS2 REQUIRED)
+endif()
+
 # MFEM_TIMER_TYPE
 if (NOT DEFINED MFEM_TIMER_TYPE)
   if (APPLE)
@@ -323,7 +328,8 @@ endif()
 #    be before SuiteSparse.
 set(MFEM_TPLS MPI_CXX OPENMP BLAS LAPACK METIS HYPRE SuiteSparse SUNDIALS PETSC
     MESQUITE SuperLUDist STRUMPACK AXOM CONDUIT GECKO GNUTLS NETCDF MPFR PUMI
-    POSIXCLOCKS MFEMBacktrace ZLIB OCCA RAJA)
+    POSIXCLOCKS MFEMBacktrace ZLIB OCCA RAJA ADIOS2)
+
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 set(TPL_INCLUDE_DIRS "")

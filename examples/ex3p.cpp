@@ -229,6 +229,19 @@ int main(int argc, char *argv[])
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       x.Save(sol_ofs);
+
+#ifdef MFEM_USE_ADIOS2
+      if (myid == 0)
+      {
+         std::cout << "Using ADIOS2\n";
+      }
+      std::string postfix = std::string(mesh_file);
+      postfix = postfix.substr(postfix.find_last_of("/")+1);
+      adios2stream adios2output("ex3p_" + postfix + ".bp",
+                                adios2stream::openmode::out, MPI_COMM_WORLD);
+      pmesh->Print(adios2output);
+      x.Save(adios2output, "sol");
+#endif
    }
 
    // 16. Send the solution by socket to a GLVis server.

@@ -313,6 +313,11 @@ public:
        the local dofs. */
    virtual void Save(std::ostream &out) const;
 
+   /** Save the local portion of the ParGridFunction. It differs from the
+       serial GridFunction::Save in that it takes into account the signs of
+       the local dofs. */
+   virtual void Save(adios2stream &out, const std::string &variable_name) const;
+
    /// Merge the local grid functions
    void SaveAsOne(std::ostream &out = mfem::out);
 

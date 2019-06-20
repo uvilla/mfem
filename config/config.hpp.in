@@ -135,6 +135,9 @@
 // Enable functionality based on the OCCA library.
 // #define MFEM_USE_OCCA
 
+// Enable IO functionality based on the ADIOS2 library.
+// #define MFEM_USE_ADIOS2
+
 // Version of HYPRE used for building MFEM.
 // #define MFEM_HYPRE_VERSION @MFEM_HYPRE_VERSION@
 

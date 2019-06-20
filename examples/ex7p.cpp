@@ -294,6 +294,21 @@ int main(int argc, char *argv[])
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       x.Save(sol_ofs);
+
+#ifdef MFEM_USE_ADIOS2
+      if (myid == 0)
+      {
+         std::cout << "Using ADIOS2 BP output\n";
+      }
+      std::string postfix = std::to_string(elem_type) + "_"+
+                            std::to_string(order) + "_" +
+                            std::to_string(ref_levels);
+      if (amr > 0) { postfix += "_amr" + std::to_string(amr);}
+      adios2stream adios2output("ex7p_sphere_refined_" + postfix + ".bp",
+                                adios2stream::openmode::out, MPI_COMM_WORLD);
+      pmesh->Print(adios2output);
+      x.Save(adios2output, "sol");
+#endif
    }
 
    // 13. Send the solution by socket to a GLVis server.

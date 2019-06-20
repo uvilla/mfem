@@ -254,6 +254,19 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u->Save(osol);
    }
+#ifdef MFEM_USE_ADIOS2
+   if (myid == 0)
+   {
+      std::cout << "Using ADIOS2 BP output\n";
+   }
+   std::string postfix(mesh_file);
+   postfix.erase(0, std::string("../data/").size() );
+   postfix += "_p" + std::to_string(problem);
+
+   adios2stream adios2output("ex9p_" + postfix + ".bp",
+                             adios2stream::openmode::out, MPI_COMM_WORLD);
+#endif
+
 
    // Create data collection for solution output: either VisItDataCollection for
    // ascii data files, or SidreDataCollection for binary data files.
@@ -352,9 +365,34 @@ int main(int argc, char *argv[])
             dc->SetTime(t);
             dc->Save();
          }
+
+#ifdef MFEM_USE_ADIOS2
+         {
+            adios2output.BeginStep();
+
+            //reduce mesh footprint (step=0 only)
+            if (adios2output.CurrentStep() == 0)
+            {
+               pmesh->Print(adios2output);
+            }
+
+            // reduce time footprint (rank=0 only)
+            if (myid == 0)
+            {
+               adios2output.SetTime(t);
+            }
+
+            u->Save(adios2output, "solution");
+            adios2output.EndStep();
+         }
+#endif
       }
    }
 
+#ifdef MFEM_USE_ADIOS2
+   // close resources before MPI_Finalize
+   adios2output.Close();
+#endif
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
    {

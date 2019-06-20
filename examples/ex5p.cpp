@@ -316,6 +316,22 @@ int main(int argc, char *argv[])
       p_ofs.precision(8);
       p->Save(p_ofs);
    }
+   {
+#ifdef MFEM_USE_ADIOS2
+      if (myid == 0)
+      {
+         std::cout << "Using ADIOS2\n";
+      }
+      std::string postfix = std::string(mesh_file);
+      postfix = postfix.substr(postfix.find_last_of("/")+1);
+      adios2stream adios2output("ex5p_" + postfix + ".bp",
+                                adios2stream::openmode::out, MPI_COMM_WORLD);
+      adios2output.SetParameter("FullData", "On");
+      pmesh->Print(adios2output);
+      u->Save(adios2output, "velocity");
+      p->Save(adios2output, "pressure");
+#endif
+   }
 
    // 15. Save data in the VisIt format
    VisItDataCollection visit_dc("Example5-Parallel", pmesh);
