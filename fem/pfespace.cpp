@@ -856,7 +856,10 @@ const Operator *ParFiniteElementSpace::GetProlongationMatrix() const
 {
    if (Conforming())
    {
-      if (!Pconf) { Pconf = new ConformingProlongationOperator(*this); }
+      if (!Pconf && NRanks > 1)
+      {
+         Pconf = new ConformingProlongationOperator(*this);
+      }
       return Pconf;
    }
    else
