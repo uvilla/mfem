@@ -58,11 +58,12 @@ using namespace mfem;
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   const char *mesh_file = "../data/beam-hex.mesh";
    int order = 1;
    bool static_cond = false;
-   bool pa = false;
-   const char *device_config = "cpu";
+   bool pa = true;
+   //const char *device_config = "raja-cuda";
+   const char *device_config = "raja-cuda";
    bool visualization = true;
 
    OptionsParser args(argc, argv);
@@ -164,7 +165,8 @@ int main(int argc, char *argv[])
    //    domain integrator.
    BilinearForm *a = new BilinearForm(fespace);
    if (pa) { a->SetAssemblyLevel(AssemblyLevel::PARTIAL); }
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   //a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->AddDomainIntegrator(new MassIntegrator(one));
 
    // 10. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary
