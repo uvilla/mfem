@@ -437,6 +437,230 @@ static void PAMassApply3D(const int NE,
    constexpr int M1D = T_D1D ? T_D1D : MAX_D1D;
    MFEM_VERIFY(D1D <= M1D, "");
    MFEM_VERIFY(Q1D <= M1Q, "");
+
+   constexpr int MQ1 = T_Q1D ? T_Q1D : MAX_Q1D;
+   constexpr int MD1 = T_D1D ? T_D1D : MAX_D1D;
+   constexpr int MDQ = (MQ1 > MD1) ? MQ1 : MD1;
+
+   auto b = Reshape(b_.Read(), Q1D, D1D);
+   auto bt = Reshape(bt_.Read(), D1D, Q1D);
+   auto op = Reshape(op_.Read(), Q1D, Q1D, Q1D, NE);
+   auto x = Reshape(x_.Read(), D1D, D1D, D1D, NE);
+   auto y = Reshape(y_.ReadWrite(), D1D, D1D, D1D, NE);
+
+   using RAJA::statement::Segs;
+   using RAJA::statement::Offsets;
+   using RAJA::statement::Params;
+
+
+   using Shared_mem = RAJA::LocalArray<double, RAJA::Perm<2,1,0>, RAJA::SizeList<MDQ, MDQ, MDQ>>;
+   using B_op = RAJA::LocalArray<double, RAJA::Perm<1,0>, RAJA::SizeList<MQ1,MD1>>;
+   using Bt_op = RAJA::LocalArray<double, RAJA::Perm<1,0>, RAJA::SizeList<MD1,MQ1>>;
+   Shared_mem sm0, sm1;
+   B_op sDQ;
+   Bt_op sQD;
+
+   using KERNEL_POL = RAJA::KernelPolicy<
+     RAJA::statement::CudaKernel<
+
+       RAJA::statement::InitLocalMem<RAJA::cuda_shared_mem, RAJA::ParamList<0, 1>,
+         RAJA::statement::InitLocalMem<RAJA::cuda_shared_mem, RAJA::ParamList<2, 3>,
+           RAJA::statement::For<0, RAJA::cuda_block_x_loop,
+
+             RAJA::statement::For<3, RAJA::cuda_thread_z_direct,
+               RAJA::statement::For<2, RAJA::cuda_thread_y_direct,
+                 RAJA::statement::For<1, RAJA::cuda_thread_x_direct,
+                   RAJA::statement::Lambda<0, Segs<0, 1, 2, 3>, Params<0> >
+                  >
+               >
+             >,
+
+            RAJA::statement::For<3, RAJA::cuda_thread_y_direct,
+              RAJA::statement::For<4, RAJA::cuda_thread_x_direct,
+                RAJA::statement::Lambda<1, Segs<4,3>, Params<2> >
+              >
+            >,
+           RAJA::statement::CudaSyncThreads,
+
+           RAJA::statement::For<3, RAJA::cuda_thread_z_direct,
+             RAJA::statement::For<2, RAJA::cuda_thread_y_direct,
+               RAJA::statement::For<4, RAJA::cuda_thread_x_direct,
+                 RAJA::statement::Lambda<2, Segs<4,2,3>, Params<1,0,2> >
+               >
+             >
+           >,
+           RAJA::statement::CudaSyncThreads,
+
+           RAJA::statement::For<3, RAJA::cuda_thread_z_direct,
+             RAJA::statement::For<5, RAJA::cuda_thread_y_direct,
+               RAJA::statement::For<4, RAJA::cuda_thread_x_direct,
+                 RAJA::statement::Lambda<3, Segs<4,5,3>, Params<0,1,2> >
+               >
+             >
+           >,
+           RAJA::statement::CudaSyncThreads,
+
+           RAJA::statement::For<6, RAJA::cuda_thread_z_direct,
+             RAJA::statement::For<5, RAJA::cuda_thread_y_direct,
+               RAJA::statement::For<4, RAJA::cuda_thread_x_direct,
+                 RAJA::statement::Lambda<4, Segs<0,4,5,6>, Params<1,0,2> >
+               >
+             >
+           >,
+          RAJA::statement::CudaSyncThreads,
+
+            RAJA::statement::For<3, RAJA::cuda_thread_y_direct,
+              RAJA::statement::For<4, RAJA::cuda_thread_x_direct,
+                RAJA::statement::Lambda<5, Segs<4,3>, Params<3> >
+              >
+            >,
+           RAJA::statement::CudaSyncThreads,
+
+           RAJA::statement::For<6, RAJA::cuda_thread_z_direct,
+             RAJA::statement::For<5, RAJA::cuda_thread_y_direct,
+               RAJA::statement::For<1, RAJA::cuda_thread_x_direct,
+                 RAJA::statement::Lambda<6, Segs<1,5,6>, Params<0,1,3> >
+               >
+             >
+           >,
+           RAJA::statement::CudaSyncThreads,
+
+           RAJA::statement::For<6, RAJA::cuda_thread_z_direct,
+             RAJA::statement::For<2, RAJA::cuda_thread_y_direct,
+               RAJA::statement::For<1, RAJA::cuda_thread_x_direct,
+                 RAJA::statement::Lambda<7, Segs<1,2,6>, Params<1,0,3> >
+               >
+             >
+           >,
+           RAJA::statement::CudaSyncThreads,
+
+           RAJA::statement::For<3, RAJA::cuda_thread_z_direct,
+             RAJA::statement::For<2, RAJA::cuda_thread_y_direct,
+               RAJA::statement::For<1, RAJA::cuda_thread_x_direct,
+                 RAJA::statement::Lambda<8, Segs<0,1,2,3>, Params<1,3> >
+               >
+             >
+           >
+
+         >//element loop
+        >
+       >
+       >//CudaKernel
+     >;
+
+   RAJA::RangeSegment elem_range(0, NE);  // 0
+   RAJA::RangeSegment dof_x_range(0,D1D); // 1
+   RAJA::RangeSegment dof_y_range(0,D1D); // 2
+   RAJA::RangeSegment dof_z_range(0,D1D); // 3
+   RAJA::RangeSegment qpt_x_range(0,Q1D); // 4
+   RAJA::RangeSegment qpt_y_range(0,Q1D); // 5
+   RAJA::RangeSegment qpt_z_range(0,Q1D); // 6
+
+   RAJA::kernel_param<KERNEL_POL>
+     (RAJA::make_tuple(elem_range,dof_x_range,dof_y_range,dof_z_range,
+                       qpt_x_range,qpt_y_range,qpt_z_range),
+      RAJA::make_tuple(sm0, sm1, sDQ, sQD),
+
+      //0
+      [=] RAJA_DEVICE (int e, int dx, int dy, int dz, Shared_mem &X) {
+       X(dz,dy,dx) = x(dx,dy,dz,e);
+      },
+
+      //1
+      [=] RAJA_DEVICE (int q, int d, B_op &B) {
+        B(q,d) = b(q, d);
+      },
+
+      //2
+      [=] RAJA_DEVICE (int qx, int dy, int dz, Shared_mem &DDQ, Shared_mem &X, B_op &B) {
+
+        double u = 0.0;
+        for (int dx = 0; dx < D1D; ++dx)
+        {
+          u += X(dz,dy,dx) * B(qx,dx);
+        }
+        DDQ(dz,dy,qx) = u;
+      },
+
+      //3
+      [=] RAJA_DEVICE (int qx, int qy, int dz, Shared_mem &DQQ, Shared_mem &DDQ, B_op &B) {
+
+        double u = 0.0;
+        for (int dy = 0; dy < D1D; ++dy)
+          {
+            u += DDQ(dz,dy,qx) * B(qy,dy);
+          }
+        DQQ(dz,qy,qx) = u;
+      },
+
+      //4
+      [=] RAJA_DEVICE (int e, int qx, int qy, int qz, Shared_mem &QQQ, Shared_mem &DQQ, B_op &B) {
+
+        double u = 0.0;
+        for (int dz = 0; dz < D1D; ++dz)
+          {
+            u += DQQ(dz,qy,qx) * B(qz,dz);
+          }
+        QQQ(qz,qy,qx) = u * op(qx,qy,qz,e);
+      },
+
+      //5
+      [=] RAJA_DEVICE (int q, int d, Bt_op &Bt) {
+
+        Bt(d,q) = b(q,d);
+
+      },
+
+      //6
+      [=] RAJA_DEVICE (int dx, int qy, int qz, Shared_mem &QQD, Shared_mem &QQQ, Bt_op &Bt) {
+
+        double u = 0.0;
+        for (int qx = 0; qx < Q1D; ++qx)
+          {
+            u += QQQ(qz,qy,qx) * Bt(dx,qx);
+          }
+        QQD(qz,qy,dx) = u;
+      },
+
+      //7
+      [=] RAJA_DEVICE (int dx, int dy, int qz, Shared_mem &QDD, Shared_mem &QQD, Bt_op &Bt) {
+
+        double u = 0.0;
+        for (int qy = 0; qy < Q1D; ++qy)
+          {
+            u += QQD(qz,qy,dx) * Bt(dy,qy);
+          }
+        QDD(qz,dy,dx) = u;
+      },
+
+      //8
+      [=] RAJA_DEVICE (int e, int dx, int dy, int dz, Shared_mem &QDD, Bt_op &Bt) {
+
+        double u = 0.0;
+        for (int qz = 0; qz < Q1D; ++qz)
+        {
+          u += QDD(qz,dy,dx) * Bt(dz,qz);
+        }
+        y(dx,dy,dz,e) += u;
+
+      }
+
+      );
+
+
+#else
+  static bool raja_gpu = true;
+  if(raja_gpu) {
+    printf("RAJA is computing on the gpu \n");
+    raja_gpu = false;
+  }
+
+   const int D1D = T_D1D ? T_D1D : d1d;
+   const int Q1D = T_Q1D ? T_Q1D : q1d;
+   constexpr int M1Q = T_Q1D ? T_Q1D : MAX_Q1D;
+   constexpr int M1D = T_D1D ? T_D1D : MAX_D1D;
+   MFEM_VERIFY(D1D <= M1D, "");
+   MFEM_VERIFY(Q1D <= M1Q, "");
    auto b = Reshape(b_.Read(), Q1D, D1D);
    auto op = Reshape(op_.Read(), Q1D, Q1D, Q1D, NE);
    auto x = Reshape(x_.Read(), D1D, D1D, D1D, NE);
@@ -490,6 +714,8 @@ static void PAMassApply3D(const int NE,
       double (*QQQ)[MQ1][MQ1] = (double (*)[MQ1][MQ1]) sm1;
       double (*QQD)[MQ1][MD1] = (double (*)[MQ1][MD1]) sm0;
       double (*QDD)[MD1][MD1] = (double (*)[MD1][MD1]) sm1;
+
+      // 0
       MFEM_FOREACH_THREAD(dz,z,D1D)
       {
          MFEM_FOREACH_THREAD(dy,y,D1D)
@@ -500,6 +726,8 @@ static void PAMassApply3D(const int NE,
             }
          }
       }
+
+      // 1
       if (tidz == 0)
       {
          MFEM_FOREACH_THREAD(d,y,D1D)
@@ -511,6 +739,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 2
       MFEM_FOREACH_THREAD(dz,z,D1D)
       {
          MFEM_FOREACH_THREAD(dy,y,D1D)
@@ -527,6 +757,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 3
       MFEM_FOREACH_THREAD(dz,z,D1D)
       {
          MFEM_FOREACH_THREAD(qy,y,Q1D)
@@ -543,6 +775,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 4
       MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
          MFEM_FOREACH_THREAD(qy,y,Q1D)
@@ -559,6 +793,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 5
       if (tidz == 0)
       {
          MFEM_FOREACH_THREAD(d,y,D1D)
@@ -570,6 +806,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 6
       MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
          MFEM_FOREACH_THREAD(qy,y,Q1D)
@@ -586,6 +824,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 7
       MFEM_FOREACH_THREAD(qz,z,Q1D)
       {
          MFEM_FOREACH_THREAD(dy,y,D1D)
@@ -602,6 +842,8 @@ static void PAMassApply3D(const int NE,
          }
       }
       MFEM_SYNC_THREAD;
+
+      // 8
       MFEM_FOREACH_THREAD(dz,z,D1D)
       {
          MFEM_FOREACH_THREAD(dy,y,D1D)
@@ -619,136 +861,7 @@ static void PAMassApply3D(const int NE,
       }
    });
 
-#else
-   const int D1D = T_D1D ? T_D1D : d1d;
-   const int Q1D = T_Q1D ? T_Q1D : q1d;
-   MFEM_VERIFY(D1D <= MAX_D1D, "");
-   MFEM_VERIFY(Q1D <= MAX_Q1D, "");
-   auto B = Reshape(B_.Read(), Q1D, D1D);
-   auto Bt = Reshape(Bt_.Read(), D1D, Q1D);
-   auto op = Reshape(op_.Read(), Q1D, Q1D, Q1D, NE);
-   auto x = Reshape(x_.Read(), D1D, D1D, D1D, NE);
-   auto y = Reshape(y_.ReadWrite(), D1D, D1D, D1D, NE);
-   MFEM_FORALL(e, NE,
-   {
-      const int D1D = T_D1D ? T_D1D : d1d;
-      const int Q1D = T_Q1D ? T_Q1D : q1d;
-      constexpr int max_D1D = T_D1D ? T_D1D : MAX_D1D;
-      constexpr int max_Q1D = T_Q1D ? T_Q1D : MAX_Q1D;
-      double sol_xyz[max_Q1D][max_Q1D][max_Q1D];
-      for (int qz = 0; qz < Q1D; ++qz)
-      {
-         for (int qy = 0; qy < Q1D; ++qy)
-         {
-            for (int qx = 0; qx < Q1D; ++qx)
-            {
-               sol_xyz[qz][qy][qx] = 0.0;
-            }
-         }
-      }
-      for (int dz = 0; dz < D1D; ++dz)
-      {
-         double sol_xy[max_Q1D][max_Q1D];
-         for (int qy = 0; qy < Q1D; ++qy)
-         {
-            for (int qx = 0; qx < Q1D; ++qx)
-            {
-               sol_xy[qy][qx] = 0.0;
-            }
-         }
-         for (int dy = 0; dy < D1D; ++dy)
-         {
-            double sol_x[max_Q1D];
-            for (int qx = 0; qx < Q1D; ++qx)
-            {
-               sol_x[qx] = 0;
-            }
-            for (int dx = 0; dx < D1D; ++dx)
-            {
-               const double s = x(dx,dy,dz,e);
-               for (int qx = 0; qx < Q1D; ++qx)
-               {
-                  sol_x[qx] += B(qx,dx) * s;
-               }
-            }
-            for (int qy = 0; qy < Q1D; ++qy)
-            {
-               const double wy = B(qy,dy);
-               for (int qx = 0; qx < Q1D; ++qx)
-               {
-                  sol_xy[qy][qx] += wy * sol_x[qx];
-               }
-            }
-         }
-         for (int qz = 0; qz < Q1D; ++qz)
-         {
-            const double wz = B(qz,dz);
-            for (int qy = 0; qy < Q1D; ++qy)
-            {
-               for (int qx = 0; qx < Q1D; ++qx)
-               {
-                  sol_xyz[qz][qy][qx] += wz * sol_xy[qy][qx];
-               }
-            }
-         }
-      }
-      for (int qz = 0; qz < Q1D; ++qz)
-      {
-         for (int qy = 0; qy < Q1D; ++qy)
-         {
-            for (int qx = 0; qx < Q1D; ++qx)
-            {
-               sol_xyz[qz][qy][qx] *= op(qx,qy,qz,e);
-            }
-         }
-      }
-      for (int qz = 0; qz < Q1D; ++qz)
-      {
-         double sol_xy[max_D1D][max_D1D];
-         for (int dy = 0; dy < D1D; ++dy)
-         {
-            for (int dx = 0; dx < D1D; ++dx)
-            {
-               sol_xy[dy][dx] = 0;
-            }
-         }
-         for (int qy = 0; qy < Q1D; ++qy)
-         {
-            double sol_x[max_D1D];
-            for (int dx = 0; dx < D1D; ++dx)
-            {
-               sol_x[dx] = 0;
-            }
-            for (int qx = 0; qx < Q1D; ++qx)
-            {
-               const double s = sol_xyz[qz][qy][qx];
-               for (int dx = 0; dx < D1D; ++dx)
-               {
-                  sol_x[dx] += Bt(dx,qx) * s;
-               }
-            }
-            for (int dy = 0; dy < D1D; ++dy)
-            {
-               const double wy = Bt(dy,qy);
-               for (int dx = 0; dx < D1D; ++dx)
-               {
-                  sol_xy[dy][dx] += wy * sol_x[dx];
-               }
-            }
-         }
-         for (int dz = 0; dz < D1D; ++dz)
-         {
-            const double wz = Bt(dz,qz);
-            for (int dy = 0; dy < D1D; ++dy)
-            {
-               for (int dx = 0; dx < D1D; ++dx)
-               {
-                  y(dx,dy,dz,e) += wz * sol_xy[dy][dx];
-               }
-            }
-         }
-      }
-   });
+
 #endif
 }
 
