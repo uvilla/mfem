@@ -58,7 +58,8 @@ Device Device::device_singleton;
 
 Device::~Device()
 {
-   if (destroy_mm) {
+   if (destroy_mm)
+   {
       free(ceed_option);
       mm.Destroy();
    }
