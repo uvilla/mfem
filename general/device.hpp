@@ -52,12 +52,11 @@ struct Backend
       /** @brief [device] OCCA CUDA backend. Enabled when MFEM_USE_OCCA = YES
           and MFEM_USE_CUDA = YES. */
       OCCA_CUDA = 1 << 8,
-      /** @brief [host] CEED backend: GPU backends can still be used, but
-          with expensive memory transfers.
-          Enabled when MFEM_USE_CEED = YES. */
+      /** @brief [host] CEED backend: GPU backends can still be used, but with
+          expensive memory transfers. Enabled when MFEM_USE_CEED = YES. */
       CEED_CPU  = 1 << 9,
-      /** @brief [device] Ceed backends working in colaboration with the Cuda backend.
-          Enabled when MFEM_USE_CEED = YES and MFEM_USE_CUDA = YES. */
+      /** @brief [device] CEED backends working in collaboration with the CUDA
+          backend. Enabled when MFEM_USE_CEED = YES and MFEM_USE_CUDA = YES. */
       CEED_CUDA = 1 << 10
    };
 
@@ -190,11 +189,11 @@ public:
        * Only one 'occa-*' backend can be configured at a time.
        * The backend 'occa-cuda' enables the 'cuda' backend unless 'raja-cuda'
          is already enabled.
-       * The backend 'ceed-cpu' delegates to a libCEED cpu backend the setup
-         and evaluation of the operator.
-       * The backend 'ceed-cuda' delegates to a libCEED cuda backend the setup
-         and evaluation of the operator and enables the 'cuda' backend to
-         avoid transfer between host and device.
+       * The backend 'ceed-cpu' delegates to a libCEED CPU backend the setup and
+         evaluation of the operator.
+       * The backend 'ceed-cuda' delegates to a libCEED CUDA backend the setup
+         and evaluation of the operator and enables the 'cuda' backend to avoid
+         transfer between host and device.
    */
    void Configure(const std::string &device, const int dev = 0);
 
