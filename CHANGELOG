@@ -10,7 +10,6 @@
 
 Version 4.0.1 (development)
 ===========================
-- Improved multi-GPU MPI communication.
 
 GPU support
 -----------
@@ -18,6 +17,10 @@ GPU support
   language that can run on both AMD and NVIDIA hardware. The list of current
   backends is: "occa-cuda", "raja-cuda", "cuda", "hip", "occa-omp", "raja-omp",
   "omp", "occa-cpu", "raja-cpu", and "cpu".
+
+- Improved multi-GPU MPI communication.
+
+- Improved RAJA backend
 
 
 Version 4.0, released on May 24, 2019
