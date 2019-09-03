@@ -51,6 +51,8 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#include <chrono>
+#include <ctime>
 
 using namespace std;
 using namespace mfem;
@@ -58,11 +60,12 @@ using namespace mfem;
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   //const char *mesh_file = "../data/star.mesh";
+   const char *mesh_file = "../data/beam-hex.mesh";
    int order = 1;
    bool static_cond = false;
-   bool pa = false;
-   const char *device_config = "cpu";
+   bool pa = true;
+   const char *device_config = "raja-cuda";
    bool visualization = true;
 
    OptionsParser args(argc, argv);
@@ -104,13 +107,15 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+     int ref_levels = 4;
+        //(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
    }
+
+   printf("Number of elements %d \n",mesh->GetNE());
 
    // 5. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -164,7 +169,8 @@ int main(int argc, char *argv[])
    //    domain integrator.
    BilinearForm *a = new BilinearForm(fespace);
    if (pa) { a->SetAssemblyLevel(AssemblyLevel::PARTIAL); }
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   //a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->AddDomainIntegrator(new MassIntegrator(one));
 
    // 10. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary
@@ -196,7 +202,15 @@ int main(int argc, char *argv[])
    }
    else // No preconditioning for now in partial assembly mode.
    {
+     auto start = std::chrono::system_clock::now();
       CG(*A, B, X, 1, 2000, 1e-12, 0.0);
+      auto end = std::chrono::system_clock::now();
+
+      std::chrono::duration<double> elapsed_seconds = end-start;
+      std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+
+      std::cout << "finished computation at " << std::ctime(&end_time)
+                << "elapsed time: " << elapsed_seconds.count() << "s\n";
    }
 
    // 12. Recover the solution as a finite element grid function.

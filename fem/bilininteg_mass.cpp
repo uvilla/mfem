@@ -576,7 +576,6 @@ static void SmemPAMassApply3D(const int NE,
    auto y = Reshape(y_.ReadWrite(), D1D, D1D, D1D, NE);
    MFEM_FORALL_3D(e, NE, Q1D, Q1D, Q1D,
    {
-      const int tidz = MFEM_THREAD_ID(z);
       const int D1D = T_D1D ? T_D1D : d1d;
       const int Q1D = T_Q1D ? T_Q1D : q1d;
       constexpr int MQ1 = T_Q1D ? T_Q1D : MAX_Q1D;
@@ -593,133 +592,100 @@ static void SmemPAMassApply3D(const int NE,
       double (*QQQ)[MQ1][MQ1] = (double (*)[MQ1][MQ1]) sm1;
       double (*QQD)[MQ1][MD1] = (double (*)[MQ1][MD1]) sm0;
       double (*QDD)[MD1][MD1] = (double (*)[MD1][MD1]) sm1;
-      MFEM_FOREACH_THREAD(dz,z,D1D)
+
+      team_loop(D1D, D1D, D1D, INNER_LAMBDA (int dx, int dy, int dz)
       {
-         MFEM_FOREACH_THREAD(dy,y,D1D)
-         {
-            MFEM_FOREACH_THREAD(dx,x,D1D)
-            {
-               X[dz][dy][dx] = x(dx,dy,dz,e);
-            }
-         }
-      }
-      if (tidz == 0)
+        X[dz][dy][dx] = x(dx,dy,dz,e);
+      });
+
+
+      team_loop(Q1D, D1D, INNER_LAMBDA (int q, int d)
       {
-         MFEM_FOREACH_THREAD(d,y,D1D)
-         {
-            MFEM_FOREACH_THREAD(q,x,Q1D)
-            {
-               B[q][d] = b(q,d);
-            }
-         }
-      }
+        B[q][d] = b(q,d);
+      });
+
+
       MFEM_SYNC_THREAD;
-      MFEM_FOREACH_THREAD(dz,z,D1D)
+
+      team_loop(Q1D, D1D, D1D, INNER_LAMBDA (int qx, int dy, int dz) 
       {
-         MFEM_FOREACH_THREAD(dy,y,D1D)
-         {
-            MFEM_FOREACH_THREAD(qx,x,Q1D)
-            {
-               double u = 0.0;
-               for (int dx = 0; dx < D1D; ++dx)
-               {
-                  u += X[dz][dy][dx] * B[qx][dx];
-               }
-               DDQ[dz][dy][qx] = u;
-            }
-         }
-      }
+        double u = 0.0;
+        for (int dx = 0; dx < D1D; ++dx)
+        {
+          u += X[dz][dy][dx] * B[qx][dx];
+        }
+        DDQ[dz][dy][qx] = u;
+      });
+
       MFEM_SYNC_THREAD;
-      MFEM_FOREACH_THREAD(dz,z,D1D)
+
+      team_loop(Q1D, Q1D, D1D, INNER_LAMBDA (int qx, int qy, int dz)
       {
-         MFEM_FOREACH_THREAD(qy,y,Q1D)
-         {
-            MFEM_FOREACH_THREAD(qx,x,Q1D)
-            {
-               double u = 0.0;
-               for (int dy = 0; dy < D1D; ++dy)
-               {
-                  u += DDQ[dz][dy][qx] * B[qy][dy];
-               }
-               DQQ[dz][qy][qx] = u;
-            }
-         }
-      }
+        double u = 0.0;
+        for (int dy = 0; dy < D1D; ++dy)
+          {
+            u += DDQ[dz][dy][qx] * B[qy][dy];
+          }
+        DQQ[dz][qy][qx] = u;
+      });
+
       MFEM_SYNC_THREAD;
-      MFEM_FOREACH_THREAD(qz,z,Q1D)
+
+      team_loop(Q1D, Q1D, Q1D, INNER_LAMBDA (int qx, int qy, int qz)
       {
-         MFEM_FOREACH_THREAD(qy,y,Q1D)
-         {
-            MFEM_FOREACH_THREAD(qx,x,Q1D)
-            {
-               double u = 0.0;
-               for (int dz = 0; dz < D1D; ++dz)
-               {
-                  u += DQQ[dz][qy][qx] * B[qz][dz];
-               }
-               QQQ[qz][qy][qx] = u * op(qx,qy,qz,e);
-            }
-         }
-      }
+        double u = 0.0;
+        for (int dz = 0; dz < D1D; ++dz)
+          {
+            u += DQQ[dz][qy][qx] * B[qz][dz];
+          }
+        QQQ[qz][qy][qx] = u * op(qx,qy,qz,e);
+      });
+
       MFEM_SYNC_THREAD;
-      if (tidz == 0)
+
+      team_loop(Q1D, D1D, INNER_LAMBDA (int q, int d)
       {
-         MFEM_FOREACH_THREAD(d,y,D1D)
-         {
-            MFEM_FOREACH_THREAD(q,x,Q1D)
-            {
-               Bt[d][q] = b(q,d);
-            }
-         }
-      }
+                Bt[d][q] = b(q,d);
+      });
+
       MFEM_SYNC_THREAD;
-      MFEM_FOREACH_THREAD(qz,z,Q1D)
+
+      team_loop(D1D, Q1D, Q1D, INNER_LAMBDA (int dx, int qy, int qz)
       {
-         MFEM_FOREACH_THREAD(qy,y,Q1D)
-         {
-            MFEM_FOREACH_THREAD(dx,x,D1D)
-            {
-               double u = 0.0;
-               for (int qx = 0; qx < Q1D; ++qx)
-               {
-                  u += QQQ[qz][qy][qx] * Bt[dx][qx];
-               }
-               QQD[qz][qy][dx] = u;
-            }
-         }
-      }
+        double u = 0.0;
+        for (int qx = 0; qx < Q1D; ++qx)
+          {
+            u += QQQ[qz][qy][qx] * Bt[dx][qx];
+          }
+        QQD[qz][qy][dx] = u;
+      });
+
       MFEM_SYNC_THREAD;
-      MFEM_FOREACH_THREAD(qz,z,Q1D)
+
+      team_loop(D1D, D1D, Q1D, INNER_LAMBDA (int dx, int dy, int qz)
       {
-         MFEM_FOREACH_THREAD(dy,y,D1D)
-         {
-            MFEM_FOREACH_THREAD(dx,x,D1D)
-            {
-               double u = 0.0;
-               for (int qy = 0; qy < Q1D; ++qy)
-               {
-                  u += QQD[qz][qy][dx] * Bt[dy][qy];
-               }
-               QDD[qz][dy][dx] = u;
-            }
-         }
-      }
+        double u = 0.0;
+        for (int qy = 0; qy < Q1D; ++qy)
+          {
+            u += QQD[qz][qy][dx] * Bt[dy][qy];
+          }
+        QDD[qz][dy][dx] = u;
+      });
+
+
       MFEM_SYNC_THREAD;
-      MFEM_FOREACH_THREAD(dz,z,D1D)
+
+      team_loop(D1D, D1D, D1D, INNER_LAMBDA (int dx, int dy, int dz)
       {
-         MFEM_FOREACH_THREAD(dy,y,D1D)
-         {
-            MFEM_FOREACH_THREAD(dx,x,D1D)
-            {
-               double u = 0.0;
-               for (int qz = 0; qz < Q1D; ++qz)
-               {
-                  u += QDD[qz][dy][dx] * Bt[dz][qz];
-               }
-               y(dx,dy,dz,e) += u;
-            }
-         }
-      }
+
+        double u = 0.0;
+        for (int qz = 0; qz < Q1D; ++qz)
+          {
+            u += QDD[qz][dy][dx] * Bt[dz][qz];
+          }
+        y(dx,dy,dz,e) += u;
+      });
+
    });
 }
 

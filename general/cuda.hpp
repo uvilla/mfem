@@ -44,6 +44,80 @@
 #define MFEM_HOST_DEVICE
 #endif // MFEM_USE_CUDA
 
+#if defined(__CUDA_ARCH__)
+#define INNER_LAMBDA [=] __device__
+#else
+#define INNER_LAMBDA [=]
+#endif
+
+//kernel helper...
+template<typename LAMBDA>
+#if defined(__CUDA_ARCH__)
+__device__
+#endif
+inline void team_loop(int Nx, LAMBDA &&body)
+{
+#if defined(__CUDA_ARCH__)
+  for(int tz=threadIdx.z; tz<1; tz+=blockDim.z)
+  for(int ty=threadIdx.y; ty<1; ty+=blockDim.y)
+  for(int tx=threadIdx.x; tx<Nx; tx+=blockDim.x)
+  {
+    body(tx);
+  }
+#else
+  for(int tx=0; tx<Nx; tx++)
+  {
+    body(tx);
+  }
+#endif
+}
+
+template<typename LAMBDA>
+#if defined(__CUDA_ARCH__)
+__device__
+#endif
+inline void team_loop(int Nx, int Ny, LAMBDA &&body)
+{
+#if defined(__CUDA_ARCH__)
+  for(int tz=threadIdx.z; tz<1; tz+=blockDim.z)
+  for(int ty=threadIdx.y; ty<Ny; ty+=blockDim.y)
+  for(int tx=threadIdx.x; tx<Nx; tx+=blockDim.x)
+  {
+    body(tx,ty);
+  }
+#else
+  for(int ty=0; ty<Ny; ty++)
+  for(int tx=0; tx<Nx; tx++)
+  {
+    body(tx,ty);
+  }
+#endif
+}
+
+template<typename LAMBDA>
+#if defined(__CUDA_ARCH__)
+__device__
+#endif
+inline void team_loop(int Nx, int Ny, int Nz, LAMBDA &&body)
+{
+#if defined(__CUDA_ARCH__)
+  for(int tz=threadIdx.z; tz<Nz; tz+=blockDim.z)
+  for(int ty=threadIdx.y; ty<Ny; ty+=blockDim.y)
+  for(int tx=threadIdx.x; tx<Nx; tx+=blockDim.x)
+  {
+    body(tx, ty, tz);
+  }
+#else
+  for(int tz=0; tz<Nz; tz++)
+  for(int ty=0; ty<Ny; ty++)
+  for(int tx=0; tx<Nx; tx++)
+  {
+    body(tx, ty, tz);
+  }
+#endif
+}
+
+
 // Define the MFEM inner threading macros
 #if defined(MFEM_USE_CUDA) && defined(__CUDA_ARCH__)
 #define MFEM_SHARED __shared__
