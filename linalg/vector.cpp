@@ -708,6 +708,7 @@ void Vector::Randomize(int seed)
 
 double Vector::Norml2() const
 {
+   HostRead();
    // Scale entries of Vector on the fly, using algorithms from
    // std::hypot() and LAPACK's drm2. This scaling ensures that the
    // argument of each call to std::pow is <= 1 to avoid overflow.
@@ -745,6 +746,7 @@ double Vector::Norml2() const
 
 double Vector::Normlinf() const
 {
+   HostRead();
    double max = 0.0;
    for (int i = 0; i < size; i++)
    {
@@ -755,6 +757,7 @@ double Vector::Normlinf() const
 
 double Vector::Norml1() const
 {
+   HostRead();
    double sum = 0.0;
    for (int i = 0; i < size; i++)
    {
@@ -777,6 +780,7 @@ double Vector::Normlp(double p) const
    }
    if (p < infinity())
    {
+      HostRead();
       // Scale entries of Vector on the fly, using algorithms from
       // std::hypot() and LAPACK's drm2. This scaling ensures that the
       // argument of each call to std::pow is <= 1 to avoid overflow.

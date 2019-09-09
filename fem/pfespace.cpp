@@ -18,6 +18,7 @@
 #include "../general/sort_pairs.hpp"
 #include "../mesh/mesh_headers.hpp"
 #include "../general/binaryio.hpp"
+#include "../linalg/operator.hpp"
 
 #include <climits> // INT_MAX
 #include <limits>
@@ -868,6 +869,10 @@ const Operator *ParFiniteElementSpace::GetProlongationMatrix() const
             if (NRanks > 1)
             {
                Pconf = new DeviceConformingProlongationOperator(*this);
+            }
+            else
+            {
+               Pconf = new IdentityOperator(GetTrueVSize());
             }
          }
       }
