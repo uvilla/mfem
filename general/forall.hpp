@@ -82,12 +82,11 @@ void OmpWrap(const int N, HBODY &&h_body)
 #endif
 }
 
+
 /// RAJA Cuda backend
 #if defined(MFEM_USE_RAJA) && defined(RAJA_ENABLE_CUDA)
 
 using RAJA::statement::Segs;
-using RAJA::statement::Offsets;
-using RAJA::statement::Params;
 
 template <const int BLOCKS = MFEM_CUDA_BLOCKS, typename DBODY>
 void RajaCudaWrap1D(const int N, DBODY &&d_body)
@@ -118,7 +117,7 @@ void RajaCudaWrap2D(const int N, DBODY &&d_body,
       d_body(k);
       MFEM_SYNC_THREAD;
    });
-   MFEM_CUDA_CHECK(cudaGetLastError());
+   MFEM_GPU_CHECK(cudaGetLastError());
 }
 
 template <typename DBODY>
@@ -136,8 +135,9 @@ void RajaCudaWrap3D(const int N, DBODY &&d_body,
         (RAJA::make_tuple(RAJA::RangeSegment(0,N), RAJA::RangeSegment(0,X),
                           RAJA::RangeSegment(0,Y), RAJA::RangeSegment(0,Z)),
    [=] RAJA_DEVICE (const int k) { d_body(k); MFEM_SYNC_THREAD; });
-   MFEM_CUDA_CHECK(cudaGetLastError());
+   MFEM_GPU_CHECK(cudaGetLastError());
 }
+
 #endif
 
 
@@ -145,8 +145,6 @@ void RajaCudaWrap3D(const int N, DBODY &&d_body,
 #if defined(MFEM_USE_RAJA) && defined(RAJA_ENABLE_OPENMP)
 
 using RAJA::statement::Segs;
-using RAJA::statement::Offsets;
-using RAJA::statement::Params;
 
 template <typename HBODY>
 void RajaOmpWrap1D(const int N, HBODY &&h_body)
