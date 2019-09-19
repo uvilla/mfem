@@ -193,9 +193,15 @@ int main(int argc, char *argv[])
 
    m.Assemble();
    m.Finalize();
+
+   printf("Begin convection matrix assembly\n");
+
    int skip_zeros = 0;
    k.Assemble(skip_zeros);
    k.Finalize(skip_zeros);
+   
+   printf("Assembled conv op, quit \n"); exit(-1);
+
    b.Assemble();
 
    // 7. Define the initial conditions, save the corresponding grid function to

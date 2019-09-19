@@ -397,6 +397,10 @@ void BilinearForm::Assemble(int skip_zeros)
    }
 #endif
 
+   ConvectionIntegrator CPA;
+   printf("dbfi.Size() %d \n", dbfi.Size());
+   CPA.AssemblePA(*fes);
+
    if (dbfi.Size())
    {
       for (int i = 0; i < fes -> GetNE(); i++)
@@ -411,6 +415,26 @@ void BilinearForm::Assemble(int skip_zeros)
             const FiniteElement &fe = *fes->GetFE(i);
             eltrans = fes->GetElementTransformation(i);
             dbfi[0]->AssembleElementMatrix(fe, *eltrans, elmat);
+
+            printf("ref-matrix \n");
+            elmat.Print();
+
+#if 0
+            DenseMatrix cMat(elMat); //matrix to test on
+            CPA.PAElementMatrix(fes,*eltrans,elmat);
+            
+            printf("\n My matrix \n");
+            cMat.Print();
+            
+            double error=0.0;
+            int matSz = elmat.Height()*elmatWidth();
+            for(int i=0; i<matSz; ++i) {
+              error += (elmat.GetData()[i]-cMat.GetData()[i])*(elmat.GetData()[i]-cMat.GetData()[i]);
+            } 
+            printf("error %g \n", error);
+            exit(-1);
+#endif
+
             for (int k = 1; k < dbfi.Size(); k++)
             {
                dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
@@ -432,6 +456,8 @@ void BilinearForm::Assemble(int skip_zeros)
          }
       }
    }
+
+   printf("bbfi.Size() %d \n", bbfi.Size());
 
    if (bbfi.Size())
    {
@@ -488,6 +514,7 @@ void BilinearForm::Assemble(int skip_zeros)
       }
    }
 
+   printf("fbfi.Size() %d \n", fbfi.Size());
    if (fbfi.Size())
    {
       FaceElementTransformations *tr;
@@ -513,6 +540,7 @@ void BilinearForm::Assemble(int skip_zeros)
       }
    }
 
+   printf("bfbfi.Size() %d \n", bfbfi.Size());
    if (bfbfi.Size())
    {
       FaceElementTransformations *tr;
