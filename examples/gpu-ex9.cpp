@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
    int ref_levels = 2;
-   int order = 3;
+   int order = 1;
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
@@ -191,9 +191,6 @@ int main(int argc, char *argv[])
    b.AddBdrFaceIntegrator(
       new BoundaryFlowIntegrator(inflow, velocity, -1.0, -0.5));
 
-   m.Assemble();
-   m.Finalize();
-
    printf("Begin convection matrix assembly\n");
 
    int skip_zeros = 0;
@@ -201,6 +198,10 @@ int main(int argc, char *argv[])
    k.Finalize(skip_zeros);
    
    printf("Assembled conv op, quit \n"); exit(-1);
+
+   //Mass matrix
+   m.Assemble();
+   m.Finalize();  
 
    b.Assemble();
 
@@ -363,7 +364,8 @@ void velocity_function(const Vector &x, Vector &v)
          switch (dim)
          {
             case 1: v(0) = 1.0; break;
-            case 2: v(0) = sqrt(2./3.); v(1) = sqrt(1./3.); break;
+              //case 2: v(0) = sqrt(2./3.); v(1) = sqrt(1./3.); break;
+            case 2: v(0) = 1.0; v(1) = 1.0; break;
             case 3: v(0) = sqrt(3./6.); v(1) = sqrt(2./6.); v(2) = sqrt(1./6.);
                break;
          }

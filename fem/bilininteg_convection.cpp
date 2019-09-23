@@ -109,51 +109,53 @@ void ConvectionIntegrator::PAElementMatrix(const FiniteElementSpace &fes,
   const int max_dim = 10;
   auto Me = Reshape(mat.GetData(),D1D,D1D,D1D,D1D);
 
-  /*
   for(int e=i; e<i+1; e++)
   {
 
     //Create B and G
-    double B[max_dim][max_dim][max_dim];
+    double BB[max_dim][max_dim][max_dim];
     double BG[max_dim][max_dim][max_dim];
     double GB[max_dim][max_dim][max_dim];
 
     for(int j1=0; j1<D1D; ++j1){
       for(int i1=0; i1<D1D; ++i1){
         for(int k1=0; k1<Q1D; k1++){
-          B[k1][i1][j1]  = B1D(k1,i1)*B1D(k1,j1);
-          GB[k1][i1][j2] = G1D(k1,i1)*B1D(k1,j1);
-          BG[k1][i1][j2] = B1D(k1,i1)*G1D(k1,j1);
+          BB[k1][i1][j1]  = B1D(k1,i1)*B1D(k1,j1);
+          GB[k1][i1][j1] = G1D(k1,i1)*B1D(k1,j1);
+          BG[k1][i1][j1] = B1D(k1,i1)*G1D(k1,j1);
         }
       }
     }
 
-    
     double W[2][max_dim][max_dim][max_dim];    
     for(int j2=0; j2<D1D; ++j2) {
       for(int i2=0; i2<D1D; ++i2) {
         for(int k1=0;k1<Q1D;k1++) {      
           
-          double dot(0.0);
-          for(int k2=0; k2<Q2D; ++k2) {
-            dot += B[k2][i2][j2]*D(0,k1,k2);            
+          double dot1(0.0), dot2(0.0);
+          for(int k2=0; k2<Q1D; ++k2) {
+            dot1 += BB[k2][i2][j2]*D(0,k1,k2,e);
+            dot2 += BG[k2][i2][j2]*D(1,k1,k2,e);
           }
-          W[0][k1][i2][j2];
+          W[0][k1][i2][j2]=dot1;
+          W[1][k1][i2][j2]=dot2;
         }
       }
     }
 
+    printf("writting to element %d \n",i);
     for(int j2=0; j2<D1D; ++j2) {
       for(int j1=0; j1<D1D; ++j1) {
         
         for(int i2=0; i2<D1D; ++i2) {
           for(int i1=0; i1<D1D; ++i1) {
 
-            double dot(0), dot2(0);
+            double dot1(0), dot2(0);
             for(int k1=0; k1<Q1D; ++k1) {        
-              dot += BG[k1][i1][j1]*W[0][k1][i2][j2];
+              dot1 += BG[k1][i1][j1]*W[0][k1][i2][j2];
+              dot2 += BB[k1][i1][j1]*W[1][k1][i2][j2];
             }
-            D(i1,i2,j1,j2) = dot;
+            Me(i1,i2,j1,j2) = dot1 + dot2;
           }
         }
 
@@ -161,7 +163,6 @@ void ConvectionIntegrator::PAElementMatrix(const FiniteElementSpace &fes,
     }
 
   }//e loop
-  */
 
 }//assembly method
 

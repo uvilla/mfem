@@ -373,6 +373,7 @@ void BilinearForm::AssembleBdrElementMatrix(
 
 void BilinearForm::Assemble(int skip_zeros)
 {
+   printf("entered BilinearForm::Assemble \n");
    if (ext)
    {
       ext->Assemble();
@@ -416,24 +417,21 @@ void BilinearForm::Assemble(int skip_zeros)
             eltrans = fes->GetElementTransformation(i);
             dbfi[0]->AssembleElementMatrix(fe, *eltrans, elmat);
 
-            printf("ref-matrix \n");
-            elmat.Print();
+            //elmat.Print();
+            //printf("ref-matrix \n");
+            DenseMatrix cMat(elmat); //matrix to test on
+            CPA.PAElementMatrix(*fes,*eltrans,cMat,i);
 
-#if 0
-            DenseMatrix cMat(elMat); //matrix to test on
-            CPA.PAElementMatrix(fes,*eltrans,elmat);
-            
-            printf("\n My matrix \n");
-            cMat.Print();
-            
+            ///printf("\n My matrix \n");
+            //cMat.Print();
+
             double error=0.0;
-            int matSz = elmat.Height()*elmatWidth();
-            for(int i=0; i<matSz; ++i) {
-              error += (elmat.GetData()[i]-cMat.GetData()[i])*(elmat.GetData()[i]-cMat.GetData()[i]);
-            } 
-            printf("error %g \n", error);
-            exit(-1);
-#endif
+            int matSz = elmat.Height()*elmat.Width();
+            for(int it=0; it<matSz; ++it) {
+              error += (elmat.GetData()[it]-cMat.GetData()[it])*(elmat.GetData()[it]-cMat.GetData()[it]);
+            }
+            //printf("error %g elem no: %d \n", sqrt(error), i);
+            if(sqrt(error)>1e-10) { exit(-1); printf("domain int error %g \n", sqrt(error)); }
 
             for (int k = 1; k < dbfi.Size(); k++)
             {
