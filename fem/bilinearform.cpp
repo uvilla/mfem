@@ -431,7 +431,7 @@ void BilinearForm::Assemble(int skip_zeros)
               error += (elmat.GetData()[it]-cMat.GetData()[it])*(elmat.GetData()[it]-cMat.GetData()[it]);
             }
             //printf("error %g elem no: %d \n", sqrt(error), i);
-            if(sqrt(error)>1e-10) { exit(-1); printf("domain int error %g \n", sqrt(error)); }
+            if(sqrt(error)>1e-10) { printf("domain int error %g \n", sqrt(error)); exit(-1);}
 
             for (int k = 1; k < dbfi.Size(); k++)
             {
@@ -519,6 +519,7 @@ void BilinearForm::Assemble(int skip_zeros)
       Array<int> vdofs2;
 
       int nfaces = mesh->GetNumFaces();
+      printf("Number of faces %d \n" ,nfaces);
       for (int i = 0; i < nfaces; i++)
       {
          tr = mesh -> GetInteriorFaceTransformations (i);
@@ -533,9 +534,22 @@ void BilinearForm::Assemble(int skip_zeros)
                                               *fes -> GetFE (tr -> Elem2No),
                                               *tr, elemmat);
                mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
+
+               DenseMatrix faceMat(elemmat);
+               faceMat = 0.0;
+               double error=0.0;
+               int matSz = elemmat.Height()*elemmat.Width();
+               elemmat.Print();
+               for(int it=0; it<matSz; ++it) {
+                 error +=
+                   (elemmat.GetData()[it]-faceMat.GetData()[it])*
+                   (elemmat.GetData()[it]-faceMat.GetData()[it]);
+               }
+               if(sqrt(error)>1e-10) { printf("int face error %g \n", sqrt(error)); exit(-1);}
             }
          }
       }
+
    }
 
    printf("bfbfi.Size() %d \n", bfbfi.Size());

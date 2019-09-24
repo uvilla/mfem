@@ -143,7 +143,6 @@ void ConvectionIntegrator::PAElementMatrix(const FiniteElementSpace &fes,
       }
     }
 
-    printf("writting to element %d \n",i);
     for(int j2=0; j2<D1D; ++j2) {
       for(int j1=0; j1<D1D; ++j1) {
         
