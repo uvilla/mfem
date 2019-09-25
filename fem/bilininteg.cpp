@@ -2416,6 +2416,7 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
 
    shape1.SetSize(ndof1);
    shape2.SetSize(ndof2);
+   printf("ndof1 %d ndof2 %d \n",ndof1, ndof2);
    elmat.SetSize(ndof1 + ndof2);
    elmat = 0.0;
 
@@ -2438,8 +2439,12 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
       ir = &IntRules.Get(Trans.FaceGeom, order);
    }
 
+   printf("No of face points %d \n", ir->GetNPoints());
    for (int p = 0; p < ir->GetNPoints(); p++)
    {
+     
+     const IntegrationPoint &iPoint = ir->IntPoint(p);
+      printf("int point %f %f \n", iPoint.x, iPoint.y);
       const IntegrationPoint &ip = ir->IntPoint(p);
       IntegrationPoint eip1, eip2;
       Trans.Loc1.Transform(ip, eip1);
@@ -2447,7 +2452,8 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
       {
          Trans.Loc2.Transform(ip, eip2);
       }
-      el1.CalcShape(eip1, shape1);
+      el1.CalcShape(eip1, shape1);      
+      shape1.Print(mfem::out,8);
 
       Trans.Face->SetIntPoint(&ip);
       Trans.Elem1->SetIntPoint(&eip1);

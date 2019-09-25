@@ -166,6 +166,7 @@ int main(int argc, char *argv[])
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.
+   //DG_FECollection fec(order, dim, BasisType::Positive);
    DG_FECollection fec(order, dim);
    FiniteElementSpace fes(&mesh, &fec);
 

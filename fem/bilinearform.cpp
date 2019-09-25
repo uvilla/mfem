@@ -513,6 +513,11 @@ void BilinearForm::Assemble(int skip_zeros)
    }
 
    printf("fbfi.Size() %d \n", fbfi.Size());
+
+   DGTraceIntegrator tDGA(1.0,-0.5);
+   //Assemble Dint
+   tDGA.AssemblePADint(*fes);
+   
    if (fbfi.Size())
    {
       FaceElementTransformations *tr;
@@ -534,12 +539,13 @@ void BilinearForm::Assemble(int skip_zeros)
                                               *fes -> GetFE (tr -> Elem2No),
                                               *tr, elemmat);
                mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
-
+               
                DenseMatrix faceMat(elemmat);
                faceMat = 0.0;
+               tDGA.PAFaceMatrix(*fes,*eltrans,faceMat,i);
                double error=0.0;
                int matSz = elemmat.Height()*elemmat.Width();
-               elemmat.Print();
+               //elemmat.Print();
                for(int it=0; it<matSz; ++it) {
                  error +=
                    (elemmat.GetData()[it]-faceMat.GetData()[it])*

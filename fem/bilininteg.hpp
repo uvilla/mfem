@@ -1794,7 +1794,7 @@ private:
 #endif
 
   //PA extension
-  Vector pa_data;
+  Vector pa_data, d_int, d_ext;
   const DofToQuad *maps; //not owned
   const GeometricFactors *geom; //not owned
   int dim, ne, nq, dofs1D, quad1D;
@@ -1810,10 +1810,12 @@ public:
                                       DenseMatrix &);
 
    virtual void AssemblePA(const FiniteElementSpace&);
-  
-   void PAElementMatrix(const FiniteElementSpace &, 
-                        ElementTransformation &,
-                        DenseMatrix &, int);
+
+  void PAElementMatrix(const FiniteElementSpace &, 
+                       ElementTransformation &,
+                       DenseMatrix &, int);
+
+
   //virtual void AddMultPA(const Vector&, Vector &) const;
 
 };
@@ -2239,19 +2241,46 @@ class DGTraceIntegrator : public BilinearFormIntegrator
 protected:
    Coefficient *rho;
    VectorCoefficient *u;
-   double alpha, beta;
 
 private:
    Vector shape1, shape2;
 
+  //PA extension
+  Vector pa_data, d_int, d_ext;
+  const DofToQuad *maps; //not owned
+  const GeometricFactors *geom; //not owned
+  int dim, ne, nq, dofs1D, quad1D, edgepts;
+
 public:
+   double alpha, beta;
+
    /// Construct integrator with rho = 1.
    DGTraceIntegrator(VectorCoefficient &_u, double a, double b)
    { rho = NULL; u = &_u; alpha = a; beta = b; }
 
+   DGTraceIntegrator(double a, double b)
+   {alpha = a; beta = b; }
+
    DGTraceIntegrator(Coefficient &_rho, VectorCoefficient &_u,
                      double a, double b)
    { rho = &_rho; u = &_u; alpha = a; beta = b; }
+
+   void AssemblePADint(const FiniteElementSpace&);
+
+  void EvalFlux(const int k1, const int k2, const Vector& normal,
+                const int ind_elt1, const int face_id1,
+                const int ind_elt2, const int face_id2,
+                const IntegrationPoint& ip1, const IntegrationPoint &ip2);
+
+   void evalFaceD(double &, double &, double &, double &,
+                 const Vector&,
+                 const IntegrationPoint&, const IntegrationPoint &);
+
+   void PAFaceMatrix(const FiniteElementSpace &, 
+                           ElementTransformation &,
+                           DenseMatrix &, int);  
+
+
 
    using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
