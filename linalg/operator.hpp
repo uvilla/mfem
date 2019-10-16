@@ -188,7 +188,7 @@ public:
 /** Operator of the form: (x,t) -> f(x,t), where k = f(x,t) generally solves the
     algebraic equation F(x,k,t) = G(x,t). The functions F and G represent the
     _implicit_ and _explicit_ parts of the operator, respectively. For explicit
-    operators, F(x,k,t) = k, so f(x,t) = G(x,t).*/
+    operators, F(x,k,t) = k, so f(x,t) = G(x,t). */
 class TimeDependentOperator : public Operator
 {
 public:
@@ -199,21 +199,35 @@ public:
       HOMOGENEOUS ///< This type assumes that G(x,t) = 0.
    };
 
+   /// Evaluation mode. See SetEvalMode() for details.
+   enum EvalMode
+   {
+      /** Normal evaluation. */
+      NORMAL,
+      /** Assuming additive split, f(x,t) = f1(x,t) + f2(x,t), evaluate the
+          first term, f1. */
+      ADDITIVE_TERM_1,
+      /** Assuming additive split, f(x,t) = f1(x,t) + f2(x,t), evaluate the
+          second term, f2. */
+      ADDITIVE_TERM_2
+   };
+
 protected:
    double t;  ///< Current time.
    Type type; ///< Describes the form of the TimeDependentOperator.
+   EvalMode eval_mode; ///< Current evaluation mode.
 
 public:
    /** @brief Construct a "square" TimeDependentOperator y = f(x,t), where x and
        y have the same dimension @a n. */
    explicit TimeDependentOperator(int n = 0, double t_ = 0.0,
                                   Type type_ = EXPLICIT)
-      : Operator(n) { t = t_; type = type_; }
+      : Operator(n) { t = t_; type = type_; eval_mode = NORMAL; }
 
    /** @brief Construct a TimeDependentOperator y = f(x,t), where x and y have
        dimensions @a w and @a h, respectively. */
    TimeDependentOperator(int h, int w, double t_ = 0.0, Type type_ = EXPLICIT)
-      : Operator(h, w) { t = t_; type = type_; }
+      : Operator(h, w) { t = t_; type = type_; eval_mode = NORMAL; }
 
    /// Read the currently set time.
    virtual double GetTime() const { return t; }
@@ -227,6 +241,23 @@ public:
    bool isImplicit() const { return !isExplicit(); }
    /// True if #type is #HOMOGENEOUS.
    bool isHomogeneous() const { return (type == HOMOGENEOUS); }
+
+   /// Return the current evaluation mode. See SetEvalMode() for details.
+   EvalMode GetEvalMode() const { return eval_mode; }
+
+   /// Set the evaluation mode of the time-dependent operator.
+   /** The evaluation mode is a switch that allows time-stepping methods to
+       request evaluation of separate components/terms of the time-dependent
+       operator. For example, IMEX methods typically assume additive split of
+       the operator: f(x,t) = f1(x,t) + f2(x,t) and they rely on the ability to
+       evaluate the two terms separately.
+
+       Generally, setting the evaluation mode should affect the behavior of all
+       evaluation-related methods in the class, such as Mult(), ImplicitSolve(),
+       etc. However, the exact list of methods that need to support a specific
+       mode will depend on the used time-stepping method. */
+   virtual void SetEvalMode(const EvalMode new_eval_mode)
+   { eval_mode = new_eval_mode; }
 
    /** @brief Perform the action of the explicit part of the operator, G:
        @a y = G(@a x, t) where t is the current time.
@@ -280,12 +311,11 @@ public:
        details, see the PETSc Manual. */
    virtual Operator& GetExplicitGradient(const Vector &x) const;
 
-   /** @brief Setup the ODE linear system A(x,t) = (I - gamma J) or
-       A = (M - gamma J), where J(x,t) = df/dt(x,t).
+   /** @brief Setup the ODE linear system \f$ A(x,t) = (I - gamma J) \f$ or
+       \f$ A = (M - gamma J) \f$, where \f$ J(x,t) = \frac{df}{dt(x,t)} \f$.
 
-       @param[in]  t     The time at which A(x,t) should be evaluated.
-       @param[in]  x     The state at which A(x,t) should be evaluated.
-       @param[in]  fx    The current value of the ODE rhs function, f(x,t).
+       @param[in]  x     The state at which \f$A(x,t)\f$ should be evaluated.
+       @param[in]  fx    The current value of the ODE rhs function, \f$f(x,t)\f$.
        @param[in]  jok   Flag indicating if the Jacobian should be updated.
        @param[out] jcur  Flag to signal if the Jacobian was updated.
        @param[in]  gamma The scaled time step value.
@@ -294,44 +324,53 @@ public:
 
        Presently, this method is used by SUNDIALS ODE solvers, for more
        details, see the SUNDIALS User Guides. */
-   virtual int ImplicitSetup(const double t, const Vector &x, const Vector &fx,
-                             int jok, int *jcur, double gamma);
+   virtual int SUNImplicitSetup(const Vector &x, const Vector &fx,
+                                int jok, int *jcur, double gamma);
 
-   /** @brief Solve the ODE linear system A x = b as setup by the method
-       ImplicitSetup().
+   /** @brief Solve the ODE linear system \f$ A x = b \f$ as setup by
+       the method SUNImplicitSetup().
 
-       @param[in,out]  x   On input, the initial guess. On output, the solution.
        @param[in]      b   The linear system right-hand side.
+       @param[in,out]  x   On input, the initial guess. On output, the solution.
        @param[in]      tol Linear solve tolerance.
 
        If not re-implemented, this method simply generates an error.
 
        Presently, this method is used by SUNDIALS ODE solvers, for more
        details, see the SUNDIALS User Guides. */
-   virtual int ImplicitSolve(Vector &x, const Vector &b, double tol);
+   virtual int SUNImplicitSolve(const Vector &b, Vector &x, double tol);
 
-   /** @brief Setup the mass matrix in the ODE system M y' = f(y,t).
-
-       @param[in]  t     The time at which M(t) should be evaluated.
+   /** @brief Setup the mass matrix in the ODE system \f$ M y' = f(y,t) \f$ .
 
        If not re-implemented, this method simply generates an error.
 
        Presently, this method is used by SUNDIALS ARKStep integrator, for more
        details, see the ARKode User Guide. */
-   virtual int MassSetup(const double t);
+   virtual int SUNMassSetup();
 
-   /** @brief Solve the mass matrix linear system M x = b as setup by the method
-       MassSetup().
+   /** @brief Solve the mass matrix linear system \f$ M x = b \f$
+       as setup by the method SUNMassSetup().
 
-       @param[in,out]  x   On input, the initial guess. On output, the solution.
        @param[in]      b   The linear system right-hand side.
+       @param[in,out]  x   On input, the initial guess. On output, the solution.
        @param[in]      tol Linear solve tolerance.
 
        If not re-implemented, this method simply generates an error.
 
        Presently, this method is used by SUNDIALS ARKStep integrator, for more
        details, see the ARKode User Guide. */
-   virtual int MassSolve(Vector &x, const Vector &b, double tol);
+   virtual int SUNMassSolve(const Vector &b, Vector &x, double tol);
+
+   /** @brief Compute the mass matrix-vector productv \f$ v = M x \f$ .
+
+       @param[in]   x The vector to multiply.
+       @param[out]  v The result of the matrix-vector product.
+
+       If not re-implemented, this method simply generates an error.
+
+       Presently, this method is used by SUNDIALS ARKStep integrator, for more
+       details, see the ARKode User Guide. */
+   virtual int SUNMassMult(const Vector &x, Vector &v);
 
    virtual ~TimeDependentOperator() { }
 };
