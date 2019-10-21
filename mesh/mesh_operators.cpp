@@ -60,6 +60,8 @@ ThresholdRefiner::ThresholdRefiner(ErrorEstimator &est)
    total_fraction = 0.5;
    local_err_goal = 0.0;
    max_elements = std::numeric_limits<long>::max();
+   amr_levels=max_elements;
+   yRange=false;
 
    threshold = 0.0;
    num_marked_elements = 0L;
@@ -109,11 +111,49 @@ int ThresholdRefiner::ApplyImpl(Mesh &mesh)
       threshold = std::max(total_err * total_fraction, local_err_goal);
    }
 
+   double vert[3];
+   double yMean;
+
    for (int el = 0; el < NE; el++)
    {
-      if (local_err(el) > threshold)
+      if (yRange && mesh.Nonconforming())
       {
-         marked_elements.Append(Refinement(el));
+        FiniteElementSpace * fes = mesh.GetNodes()->FESpace();
+        Array<int> dofs;
+        fes->GetElementDofs(el, dofs);
+        int ndof=dofs.Size();
+        yMean=0.0;
+        for (int j = 0; j < ndof; j++)
+        {
+           mesh.GetNode(dofs[j], vert);
+           yMean+=vert[1];
+        }
+        yMean=yMean/ndof;
+        //std::cout <<"el yMean="<<el<<' '<<yMean << '\n';
+        
+        if (local_err(el) > threshold && 
+            mesh.ncmesh->GetElementDepth(el) < amr_levels &&
+            yMean>ymin && yMean<ymax
+            )
+        {
+           marked_elements.Append(Refinement(el));
+        }
+
+      }
+      else if (mesh.Nonconforming())
+      {
+        if (local_err(el) > threshold && 
+            mesh.ncmesh->GetElementDepth(el) < amr_levels)
+        {
+           marked_elements.Append(Refinement(el));
+        }
+      }
+      else
+      {
+        if (local_err(el) > threshold )
+        {
+           marked_elements.Append(Refinement(el));
+        }
       }
    }
 

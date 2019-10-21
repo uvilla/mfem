@@ -1,0 +1,827 @@
+run:
+exMHD -r 2 -o 2 -tf 3 -vs 100 -dt .002
+exMHD -r 2 -tf 10 -vs 50 -dt .004 -i 2
+
+Parallel AMR run:
+mpirun -n 16 exAMRMHDp -m xperiodicR1.mesh -rs 0 -rp 2 -o 4 -tf 8 -vs 200 -dt .0001 -i 3 -amrl 3 -ltol 2e-3 -derefine
+
+parallel run:
+mpirun -n 4 exMHDp -rs 4 -o 2 -tf 3 -vs 100 -dt .001
+mpirun -n 4 exMHDp -rs 4 -tf 10 -vs 200 -dt .001 -i 2
+mpirun -n 4 exMHDp -m xperiodicR3.mesh -rs 0 -o 4 -tf 8 -vs 100 -dt .001 -i 3
+
+case 3 example run
+mpirun -n 8 exMHDp -m xperiodic.mesh -rs 3 -o 4 -tf 8 -vs 100 -dt .001 -i 3
+mpirun -n 8 exAMRMHDp -m xperiodicR1.mesh -rs 0 -rp 2 -o 4 -tf 8 -vs 200 -dt .0001 -i 3 -amrl 3 -ltol 2e-3 -derefine
+
+
+serial AMR quick test:
+./exAMRMHD -m xperiodicR3.mesh -r 0 -o 4 -tf .025 -vs 10 -dt .0001 -i 3 -amrl 3 -ltol 1e-3
+
+Parallel AMR quick test:
+./exAMRMHDp -m xperiodicR3.mesh -rs 0 -o 4 -tf .025 -vs 10 -dt .0001 -i 3 -amrl 3 -ltol 1e-3
+
+plot:
+glvis -m refined.mesh -g current.sol -k "mmcRjl" -ww 800 -wh 800
+glvis -m refined.mesh -g psiPer.sol -k "mmc" -ww 800 -wh 800
+glvis -m refined.mesh -g phi.sol -k "mmc" -ww 800 -wh 800
+glvis -m refined.mesh -g omega.sol -k "mmc" -ww 800 -wh 800
+
+
+glvis -m refined.mesh -g psiPer.sol -k "mmRjl" -ww 1000 -wh 1000
+
+parallel plot:
+glvis -np 4 -m mesh -g sol_omega -k "mmc" -ww 800 -wh 800
+
+9/16
+for sl=10^3 and o=3, I cannot solve preconditioner too tight:
+    for r=6, 7, 8
+    mffd 1e-3
+    rtol=1e-3 in small matrices is better than 1e-5 
+    mass matrix should always be 1e-6
+
+    for r=7, resi=1e-4
+    it is more important to use 1e-2 in mffd
+    for r=8, resi=1e-4
+    I cannot find a working parameter set so far
+    what if I recuded mffd to 5e-2
+
+I am wondering if it could help o=2 s=10 case
+1e-3 is okay for r=7, r=8, not okay for r=9
+
+8/27
+revisit exAMR
+
+this seems working
+exAMRMHD -m Meshes/xperiodicR3.mesh -r 0 -o 3 -tf 8 -vs 10 -dt .0002 -i 3 -amrl 3 -ltol 1e-3
+
+o=3 derefine seems have very small impact;
+exAMRMHD -m Meshes/xperiodicR3.mesh -r 0 -o 3 -tf 8 -vs 10 -dt .0002 -i 3 -amrl 3 -ltol 1e-3 -derefine
+
+this is okay np=4,8 (it is possible because the previous AMR setup has some issue; it could be derefine was too aggressive):
+mpirun -np 4 exAMRMHDp -m Meshes/xperiodicR3.mesh -rs 0 -o 3 -tf 1 -vs 10 -dt .0002 -i 3 -amrl 3 -ltol 1e-3 -derefine
+
+this becomes strange (this is not the same because derefine is different!!)
+mpirun -np 4 exAMRMHDp -m Meshes/xperiodic.mesh -rs 3 -o 3 -tf 1 -vs 10 -dt .0002 -i 3 -amrl 3 -ltol 1e-3
+
+
+
+
+o2 is not working
+
+8/26
+exAMRMHD fails for o=3? Diverged pcg? time steps are probably too large
+
+8/17
+new tests:
+mpirun -n 4 exMHDp -m Meshes/xperiodic1.mesh -rs 4 -o 2 -tf 1 -vs 100 -dt .001 -i 3
+mpirun -n 4 exMHDp -m Meshes/xperiodic-square-new.mesh -rs 2 -o 2 -tf 3 -vs 100 -dt .001
+
+redo:
+64*64
+mpirun -n 4 imMHDp  -m Meshes/xperiodic-square-new.mesh -rs 4 -o 2 -i 2 -tf 10 -dt 5 -s 3 -usepetsc --petscopts petscrc/rc_full -shell
+
+8/13
+srun -n 16 imMHDp -rs 6 -rp 1 -o 2 -i 2 -vs 1 -tf 5 -dt 5 -usepetsc --petscopts petscrc/rc_debug -s 3 -shell
+key parameters:
+-snes_linesearch_type bt
+-mat_mffd_type wp
+-mat_mffd_err 1e-3
+-snes_ksp_ew_rtol0 0.3
+-snes_ksp_ew_rtolmax 0.9
+
+r=8 can be solved by:
+-mat_mffd_err 1e-2
+
+8/11
+try this:
+mpirun -n 4 imMHDp -rs 5 -o 3 -i 2 -tf 10 -dt 2 -vs 1 -no-vis -usepetsc --petscopts petscrc/rc_debug -s 1 -shell
+snes_rtol=1e-4 amg tol=1e-5
+time 2281
+
+add SDIRK and mid-point stepping
+
+this is okay (change mesh to a single mesh)
+
+ok
+mpirun -n 6 imMHDp -m meshes/xperiodic1.mesh -rs 4 -rp 2 -o 3 -i 3 -vs 1 -tf .1 -dt .1 -usepetsc --petscopts petscrc/rc_debug -s 3 -shell
+  total number of linear solver iterations=15
+
+not ok
+mpirun -n 6 imMHDp -m meshes/xperiodic1.mesh -rs 5 -rp 2 -o 3 -i 3 -vs 1 -tf .1 -dt .1 -usepetsc --petscopts petscrc/rc_debug -s 3 -shell
+
+ok
+mpirun -n 4 imMHDp -rs 4 -rp 2 -o 2 -i 2 -vs 1 -tf 5 -dt 5 -usepetsc --petscopts petscrc/rc_debug -s 3 -shell
+
+ok
+mpirun -n 6 imMHDp -rs 5 -rp 2 -o 2 -i 2 -vs 1 -tf 1 -dt 1 -usepetsc --petscopts petscrc/rc_debug -s 3 -shell
+let mffd be 1e-4 becomes much better?!
+
+check the allocation part, is it slow??
+mpirun -n 6 imMHDp -rs 5 -rp 3 -o 2 -i 2 -vs 1 -tf 1 -dt 1 -usepetsc --petscopts petscrc/rc_debug -s 3 -shell
+
+mat_mffd_err 1e-4 works fine for r=7
+mat_mffd_err 1e-3 works fine for r=8! it works for dt=5 of r=7!
+
+
+8/8
+probably need to change Sc to nontranspose version? No
+Changing mat_mffd_err 1e-5 helps significantly!
+
+this works:
+ mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -vs 1 -tf 250 -dt 5 -usepetsc --petscopts petscrc/rc_debug -s 1 -shell
+ mpirun -n 4 imMHDp -m xperiodic.mesh -rs 4 -o 3 -i 3 -vs 1 -tf 8 -dt .2 -usepetsc --petscopts petscrc/rc_debug -s 1 -shell
+
+use richardson as ksp if one wants to use hypre as the solver in petsc
+
+8/7
+inexac Newton?
+
+preconditioner needs improvements in solving omega (increase regularity)
+
+this does not perform well
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -vs 1 -tf 5 -dt 5 -usepetsc --petscopts rc_debug -s 1 -shell
+
+inexact newton is ok for case 1
+mpirun -n 4 imMHDp -rs 4 -o 2 -vs 1 -tf 3 -dt .1 -usepetsc --petscopts rc_debug -s 1 -shell
+ok for case 3
+mpirun -n 4 imMHDp -m xperiodic.mesh -rs 4 -rp 0 -o 3 -tf 1 -vs 1 -dt .1 -i 3 --usepetsc --petscopts rc_debug -s 1 -shell
+
+icase 2:
+resitivity=10^4; dt = 2 ok
+resitivity=10^3; dt = 1 ok
+resitivity=10^3; dt = 2 (fgmres is slightly better; will take more ksp solves)
+
+maybe I should use MatCreateSchurComplement?
+
+8/6
+compare
+run -n 4 imMHDp -rs 2 -o 2 -tf 3 -vs 100 -dt .002 -usepetsc --petscopts rc_jfnk -s 1 -shell
+vs
+run -n 4 imMHDp -rs 2 -o 2 -tf 3 -vs 100 -dt .002 -usepetsc --petscopts rc_full -s 1 -shell
+
+this seems working:
+srun -n 4 imMHDp -rs 4 -o 2 -tf 3 -vs 100 -dt .1 -usepetsc --petscopts rc_full -s 1 -shell
+
+when iter=10, whis works
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -tf 1 -dt .02 -usepetsc --petscopts rc_full -s 1 -shell
+
+when iter=5, this is ok
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -tf 1 -dt .01 -usepetsc --petscopts rc_full -s 1 -shell
+
+when iter=8, this is ok
+mpirun -n 4 imMHDp -m xperiodic.mesh -rs 4 -rp 0 -o 3 -tf 1 -vs 50 -dt .01 -i 3 --usepetsc --petscopts rc_full -s 1 -shell
+
+My time step is smaller than pixie2d??
+
+Possible fix:
+1 use fieldsplit
+2 use inexact Newton
+
+I am doing GMRES for nested mat or jfnk?? jfnk
+
+iter=5 is ok if GMRES is turned on but I am not sure I am doing the correct GMRES
+
+this works (with iter=5):
+-snes_monitor
+-snes_mf_operator
+-snes_max_it 20
+-snes_rtol 5e-6
+-snes_converged_reason 
+-snes_linesearch_type l2
+#
+# use inexact newton based on pixie2d:  
+# ierr = SNESKSPSetParametersEW(snes,3,tolgm,0.9,0.9,1.5,1.5,0.1)
+-snes_ksp_ew
+-snes_ksp_ew_version 3
+-snes_ksp_ew_rtol0 5e-6
+-snes_ksp_ew_rtolmax 0.9
+-snes_ksp_ew_gamma 0.9
+-snes_ksp_ew_alpha2 1.5
+-snes_ksp_ew_alpha2 1.5
+-snes_ksp_ew_threshold 0.1
+#
+-ksp_type gmres
+-ksp_converged_reason
+-ksp_rtol 5e-6
+-ksp_monitor_true_residual
+#======Stiffness matrix======
+-s1_ksp_rtol 1e-6
+-s1_ksp_type cg
+-s1_pc_type hypre
+#======Schur matrix======
+-s2_ksp_rtol 1e-6
+-s2_pc_type hypre
+#======Mass matrix======
+-s3_ksp_rtol 1e-6
+-s3_ksp_type cg
+
+ok:
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -vs 1 -tf 20 -dt 1 -usepetsc --petscopts rc_full -s 1 -shell
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -vs 1 -tf 20 -dt 5 -usepetsc --petscopts rc_full -s 1 -shell
+
+what kind of newton solver used in pixie2d?
+
+
+8/5
+The current way of allocating hypre matrices may be slow in assembly
+
+Alternatively, I could try:
+VecReciprocal(diag);
+MatDiagonalSet
+MatPtAP
+
+Try use Add to define some matrices (in SetParameters)
+
+7/29
+fix useFull=false (I need to use ParAdd and I cannot delete BilinearForm)
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -tf 1 -dt .001 -usepetsc --petscopts rc_jfnk -s 1 -shell
+
+ok:
+srun -n 4 imMHDp -rs 4 -o 2 -i 2 -tf 1 -dt .001 -usepetsc --petscopts rc_jfnk -s 1 -shell
+srun -n 4 imMHDp -rs 2 -o 2 -tf 3 -vs 100 -dt .002 -usepetsc --petscopts rc_jfnk -s 1 -shell
+
+7/13
+in GetGradient:
+assemble Nv and Nb (let diag = 0)
+construct Sc = ASl + Nb^T D^-1 Nb: follow ex5p
+   M->GetDiag(*Md);
+   MinvBt->InvScaleRows(*Md); 
+and pass
+ARe Nb 0
+0   Sc 0
+K   0  M
+
+there is something wrong in the Jacobi iteration:
+missed one right hand side!
+missed the correction for the second equation in my Jacobi iteration!
+
+Save Mdt+KSl and Mdt+KRe; adjust only when timestep is changed
+
+working example:
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -tf 1 -dt .001 -usepetsc --petscopts rc_jfnk -s 1 -shell
+vs
+mpirun -n 4 imMHDp -rs 4 -o 2 -i 2 -tf 1 -dt .001 -s 2 
+
+6/24
+working on full preconditioner: follow ex5p.cpp
+
+option 1:
+GetDiag for M/dt+SRe and GetGiag for Nv
+option 2:
+use MatGetDiagonal (eaiser)
+DRe and DSl are assembled in parallel
+
+Step 1: Try this instead (this will give me HypreParMat for diffusion operartor):
+   S0->Assemble();
+   S0->EliminateEssentialBC(ess_bdr);
+   S0->Finalize();
+   HypreParMatrix * matS0   = S0->ParallelAssemble();    delete S0;
+
+Mult (HypreParVector &x, HypreParVector &y, double alpha=1.0, double beta=0.0)
+   y = alpha * A * x + beta * y
+So addMult should be
+matS0.Mult( x, y, 1.0, 1.0)
+
+then delete DSl DRe
+
+tried but this is not going to work because ParallelAssemble removes all the terms w.r.t essential dofs. However, this should not affect the preconditioner
+
+Step 2: double check notes; ok
+Step 3: build two operators and add capibility of changing time step (variable time stepping is left for later)
+Step 4: implement Jacobi iteration in pcshell
+
+
+Nb->ParallelAssemble;
+Md = new HypreParVector(MPI_COMM_WORLD, Nb->GetGlobalNumRows(),
+                              Nb->GetRowStarts());
+HypreParVector *Md = NULL;
+M->GetDiag(*Md);
+MinvBt->InvScaleRows(*Md);
+S = ParMult(B, MinvBt);
+
+the only question is Jacobi iteration. Maybe, I could rescale in pcshell
+Yes, use VecPointwiseDivide to implemented Diag_Re
+
+There are two ways to build Schur complement: in mfem or petsc. I will build it in mfem for now
+
+How many Jacobi iterations? fixed of 2-4 (no need to set stoppage)
+What would be a good stoppage critera for Jacobi iteration?
+
+Be careful for the negative signs in the preconditioner!
+Should I do something special for the boundary? 
+=======
+6/25
+try to reproduce results:
+srun -n 4 imMHDp -rs 4 -tf 1 -vs 200 -dt .001 -i 2 -no-vis
+
+but 
+EliminateEssentialBC(ess_bdr) will not generate the matrix I need
+
+6/16
+the explicit and implicit solvers are comparable with pcshell:
+(this uses a very bad linear solver, so it converges very slow)
+
+ok:
+###
+srun -n 1 ../imMHDp -rs 2 -o 2 -tf .05 -vs 100 -dt .001 -m ../xperiodic-square.mesh
+###vs###
+srun -n 1 imMHDp -rs 2 -o 2 -tf .05 -vs 40 -dt .00025 -usepetsc --petscopts rc_mfop -s 1 -no-vis
+-snes_monitor
+-snes_mf_operator
+-snes_max_it 10
+-snes_rtol 1e-5
+-ksp_type minres
+-ksp_rtol 1e-5
+-ksp_atol 1e-20
+-pc_type jacobi
+
+ok:
+###
+srun -n 4 ../imMHDp -rs 4 -o 2 -tf .0001 -vs 100 -dt .0001 -m ../xperiodic-square.mesh
+###vs###
+srun -n 4 imMHDp -rs 4 -o 2 -tf .0001 -vs 40 -dt .00002 -usepetsc --petscopts rc_mfop -s 1 -no-vis
+
+
+ok:
+mpirun -n 4 ../imMHDp -rs 4 -tf .001 -vs 200 -dt .001 -i 2
+srun -n 4 imMHDp -rs 4 -o 2 -tf .001 -dt .00002 -i 2 -usepetsc --petscopts rc_mfop -s 1 -no-vis
+petsc flag:
+-snes_monitor -snes_mf_operator
+-snes_max_it 10
+-snes_rtol 1e-5
+-ksp_type minres
+-ksp_rtol 1e-5
+-ksp_atol 1e-20
+-pc_type jacobi
+
+not ok:
+srun -n 1 imMHDp -rs 2 -o 2 -tf .05 -vs 40 -dt .00025 -usepetsc --petscopts rc_jfnk -s 1 -shell
+
+sub is deleted in petsc!!
+
+add a mini example:
+
+this works fine:
+srun -n 1 mini -rs 2 -tf .00004 -dt .00002 --petscopts rc_mfop
+srun -n 4 mini -rs 4 -tf .00004 -dt .00002 --petscopts rc_mfop
+
+this is not working:
+srun -n 1 mini -rs 2 -tf .00004 -dt .00002 --petscopts rc_jfnk -shell
+srun -n 4 mini -rs 4 -tf .00004 -dt .00002 --petscopts rc_jfnk -shell
+
+counter part:
+srun -n 1 imMHDp -rs 2 -o 2 -tf .00004 -dt .00002 -usepetsc --petscopts rc_jfnk -s 1 -shell
+srun -n 4 imMHDp -rs 4 -o 2 -tf .00004 -dt .00002 -usepetsc --petscopts rc_jfnk -s 1 -shell
+
+
+6/11
+debug:
+srun -n 1 imMHDp -rs 2 -o 2 -tf 3 -vs 100 -dt .002 -usepetsc --petscopts rc_jfnk -s 1 -no-vis
+
+
+
+
+6/6
+Is the iterative mode working for PetscNonlinearSolver??
+I think so. However, preconditioner should not use iterative mode, since it solves for du!
+
+6/5
+PetscParMatrix *pA;
+oh.Get(pA);
+hypre_ParCSRMatrix *parcsr;
+MatHYPREGetParCSR(*pA,&parcsr);
+
+Could I just use MATAIJ in jacType? I do not see the point to use MATHYPRE
+Do I construct a MyBlockSolver every time step or not? No
+
+5/29
+o ReducedSystemOperator 
+o link it with petsc
+o getgradient
+o preconditionerfactory 
+o add kspsolve into pcshell
+
+class MyBlockSolver : public mfem::Solver
+{
+   MyBlockSolver(OperatorHandle oh) { //constructor
+  PetscParMatrix *PP;
+  // Get the PetscParMatrix out of oh. I showed you how to do it
+  Mat P = *PP; // type cast to Petsc Mat
+  MatNestGetSubMats(P,&N,&M,&sub)// sub is an N by M array of matrices
+  // Create your own internal KSP objects to handle the subproblems
+  // Create PetscParVectors as placeholders internal_x and internal_y
+}
+  Mult(const Vector & x, Vector &y)
+  {
+   internal_x.PlaceArray(x.GetData()); // no copy, only the data pointer is passed to PETSc
+ 
+   internal_y.PlaceArray(y.GetData());
+
+
+  MatNestGetIs(...) // get the index sets of the blocks
+  for i = 1:3
+    VecGetSubVector(internal_x,index_set[i],&blockx)
+    VecGetSubVector(internal_y,index_set[i],&blocky)
+   KSPSolve(kspblock[i],blockx,blocky)
+
+    VecRestoreSubVector(internal_x,index_set[i],&blockx)
+    VecRestoreSubVector(internal_y,index_set[i],&blocky)
+  }
+
+
+ 
+   internal_x.ResetArray();
+ 
+   internal_y.ResetArray();
+
+
+
+  }
+}
+
+Solver * PreconditionerFactory::NewPreconditioner(OperatorHandle oh)
+{
+  return new MyBlockSolver(oh);
+}
+
+Q:
+Could I call mfem linear solver in reducedsystem::mult?
+Is it better to pass pointers of HypreParMatrix to reducedsystem? I do not think reducedsystem owns those objects.
+Similarly, I could pass M_solver into reducedsystem.
+
+5/22
+Try this (is that for parallel?)
+   BlockOperator *darcyOp = new BlockOperator(block_trueOffsets);
+   darcyOp->SetBlock(0,0, M);
+   darcyOp->SetBlock(0,1, BT);
+   darcyOp->SetBlock(1,0, B);
+
+This is for serial:
+   BlockMatrix A = new BlockMatrix( offsets );
+   A->SetBlock(0,0, &A00);
+   A->SetBlock(0,1,  &A01);
+   A->SetBlock(1,0,  &A10);
+
+In pcshell, I need to
+    KSPSetOperators(ksp1,Mdt,Mdt);
+    KSPSolve(ksp1, b2, x2)
+    KSPSolve(ksp1, b3, x3)
+    
+    MatMult(Mdt,x3,bTmp);
+    bTmp=bTmp*dt+b1;
+    KSPSetOperators(ksp2,K,K);
+    KSPSolve(ksp2, b2, x2)
+
+See
+file:///Users/qtang/software/petsc-3.10.2/src/ksp/ksp/examples/tutorials/ex9.c.html
+
+Where should I initialize KSP?
+    KSPCreate(PETSC_COMM_WORLD,&ksp1);
+    KSPSetFromOptions(ksp1);
+    KSPAppendOptionsPrefix(ksp2,"s1_");
+    KSPCreate(PETSC_COMM_WORLD,&ksp2);
+    KSPAppendOptionsPrefix(ksp2,"s2_");
+    
+    Define three ksp in __mfem_pc_shell_ctx
+    Then destroy them in __mfem_pc_shell_destroy
+
+what would be a good initial guess? Use zero for now.
+
+
+
+5/21
+switch solver to true dofs for ImplicitSolve
+
+5/20
+swich J back to auxilary variable (keep the original implement in exMHD for debugging purpose)
+
+
+5/17
+Issues:
+x it has to assemble nv and nb each time step, not sure how to do it implicitly (am I doing matrix-free for those two? Probably not)
+
+implemented a new approach based on LinearForm, but it is slower
+
+todo for imMHDp
+1. treat J as a true auxiliary variable
+2. implement a new class for implicit scheme and reduced operator
+
+
+5/15
+Q1. what happens to GetGradient when factory is used? It is called through __mfem_snes_jacobian
+2. Where is Mult implemented now? It is implemented through J->Mult from GetGradient
+3. reducedOperator->Mult is something else (not the same)
+
+see submatrix in (a good example on multiphysics coupling)
+https://www.mcs.anl.gov/petsc/petsc-current/src/snes/examples/tutorials/ex28.c.html
+
+Question: how could I access the block vec from y??
+MatGetLocalSubMatrix
+VecGetLocalVector
+Those will determine the local matrix and local vectors
+
+Define the linearform operator:
+the linear integral order is probably 3k/2
+define a special coefficient by myself
+then define a linearform and assemble
+
+
+5/11
+-snes_mf_operator is working 
+
+
+5/6
+mpirun -n 1 exAMRMHDp -m xperiodic.mesh -rs 3 -o 4 -tf 8 -vs 10 -dt .0001 -i 3 -amrl 3 -ltol 1e-3
+mpirun -n 4 exAMRMHDp -m xperiodic.mesh -rs 3 -o 4 -tf 8 -vs 10 -dt .0001 -i 3 -amrl 3 -ltol 1e-3
+
+derefine in parallel amr working:
+mpirun -n 16 exAMRMHDp -m xperiodicR1.mesh -rs 0 -rp 2 -o 4 -tf 8 -vs 200 -dt .0001 -i 3 -amrl 3 -ltol 2e-3 -derefine
+
+5/4
+on nersc debug mode has issue (fixed)
+make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=CC
+standard is ok:
+make config MFEM_USE_MPI=YES MFEM_DEBUG=NO MPICXX=CC
+
+serial config:
+make config MFEM_USE_MPI=NO MFEM_DEBUG=NO CXX=CC
+
+5/3
+1. Try derefine
+2. Prallel AMR
+
+Consider:
+JFNK
+Poisson Bracket
+SMG
+Mixed FEM
+
+
+4/30
+Test it on nersc
+srun -n 32 ../exMHDp -m ../xperiodic.mesh -rs 6 -rp 0 -o 3 -tf 1 -vs 2500 -dt .0002 -i 3 -no-vis -visit
+
+profiling this case:
+mpirun -n 48 ../exMHDp -m ../xperiodic.mesh -rs 6 -rp 1 -o 3 -tf .1 -vs 1000 -dt .00005 -i 3
+
+4/29
+After fixing a bug, parallel code works well:
+mpirun -n 96 ../exMHDp -m ../xperiodic.mesh -rs 6 -rp 0 -o 3 -tf 8 -vs 2500 -dt .0002 -i 3 -no-vis -visit
+
+4/27
+parallel code appears working
+
+for icase=3
+need to reduce rel_tol to invert the mass matrix
+it is better to use different rel_tol for mass and stiffness matrices
+
+BoomerAMG is also working
+mpirun -n 8 exMHDp -m xperiodic.mesh -rs 3 -rp 2 -o 3 -tf 1 -vs 50 -dt .001 -i 3
+
+4/26
+the paralle code sometimes work but sometimes give me unstable results
+
+ok:
+mpirun -n 2 exMHDp -rs 2 -tf 10 -vs 50 -dt .004 -i 2
+mpirun -n 4 exMHDp -rs 3 -o 3 -tf 3 -vs 100 -dt .001 -no-vis
+
+there is probably a bug in the saving function (got some numbers of 1e-312)
+
+I cannot make vis working. Maybe there is a bug in the code?
+
+this works:
+mpirun -n 4 exMHDp -rs 2 -rp 2 -tf 10 -vs 50 -dt .0005 -i 2 -visit -no-vis
+
+this fails on mac (there is a bug somewhere) but works on hpcc:
+mpirun -n 4 exMHDp -rs 4 -rp 0 -tf .001 -vs 100 -dt .001 -i 2 -no-vis
+
+this also fails:
+mpirun -n 4 exMHDp -rs 2 -o 2 -tf .002 -vs 100 -dt .002
+
+this sometimes works and sometimes not (works on intel14 but not intel16):
+mpirun -n 4 exMHDp -rs 2 -o 2 -tf 1.5 -vs 100 -dt .002
+
+4/25
+there is a strange bug associate with M->Mult (not consistent in serial and parallel)
+
+4/23
+try to benchmark against Pixie2d; the ic example give different resutls with the same initial condition
+o found the missing source term in the ic case
+
+
+4/12
+parallel version:
+mesh -> ParMesh
+FiniteElementSpace -> ParFiniteElementSpace
+GridFunction -> ParGridFunction
+save solution needs to be changed and visual as well
+
+myCoefficient.hpp? probably could stay sound
+Change some preconditioner in ResistiveMHDOperator.hpp
+
+
+4/10
+try:
+Start with an AMR mesh
+Refine every 1000 time steps
+./exAMRMHD -m xperiodicR3.mesh -r 0 -o 4 -tf 8 -vs 10 -dt .0001 -i 3 -amrl 3 -ltol 1e-3
+
+in the inner loop of refinement, I could potential do an iteration!
+
+4/9
+grid space 5e-3 at x point for island
+try back solve Psi through J! not working!
+Evolve current? maybe not there yet
+
+do some iterations first and obtain a better initial grid!!
+
+>>>Do AMR grid generation first
+./generateAMR -m xperiodicR3.mesh -r 0 -o 4 -i 3 -amrl 3 -ltol 1e-10
+
+4/8
+>>>derefiner is a major source to introduce osscillations
+Demo: 129->130 (see the oscillations in omega!):
+Number of unknowns: 52336
+Number of elements in mesh: 3024
+step 130, t = 0.013
+Derefined mesh...
+True V size = 46496
+Problem size = 51952
+Number of unknowns: 51952
+Number of elements in mesh: 3000
+
+>>>K operator plus an interpolation (and grad J) is the secondary issue
+
+try
+./exAMRMHD -m xperiodicR3.mesh -r 0 -o 4 -tf 8 -vs 1000 -dt .0001 -i 3 -amrl 3 -ltol 5e-3 -visit
+
+4/6
+this is sort of working
+ ./exAMRMHD -m xperiodic.mesh -r 3 -o 4 -tf 10 -vs 50 -dt .0001 -i 3 -ltol 1e-3
+
+after adding refinement level, this works better
+./exAMRMHD -m xperiodic.mesh -r 3 -o 4 -tf .02 -vs 50 -dt .0001 -i 3 -amrl 3 -ltol 1e-3
+
+
+4/5
+AMR starts to work after I switch vector size total dofs
+
+4/3
+there are some issues for AMR:
+o KB add more degrees freedom for nonconforming AMR (see by trun off refiner.SetTotalErrorFraction(0.0))
+  I can probably fix it with Mark's suggestion.
+x When it did uniform refinement, KB is okay but Current is very osscillatory (P4 is better but I am surprised by the results)
+  see (by turn on refiner.SetTotalErrorFraction(0.0)):
+  ./exAMRMHD -m xperiodic.mesh -r 3 -o 3 -tf 10 -vs 50 -dt .002 -i 3 -ltol 1e-6
+x I do not know how to add the AMR levels (probably control through nc_limit)
+x Derefine is not tested yet
+
+there are one issue for nonlinear:
+x I have to assemble matrix whenever the nonlinear operator called
+
+o it is not doing uniform refinement any more
+
+We may need to have two requests:
+o fix KB for nonconforming AMR
+o install the nonlinear operator
+
+4/2
+this looks okay, although it does some uniform refinement:
+./exAMRMHD -r 3 -o 3 -tf 10 -vs 50 -dt .002 -i 2 -ltol 1e-6
+
+island test:
+./exAMRMHD -m xperiodic.mesh -r 3 -o 3 -tf 10 -vs 50 -dt .002 -i 3 -ltol 1e-6
+
+amr test is strange:
+current is oscillatory
+amr can only do uniform refinement
+
+4/1
+there is a strange bug: I have to store coefficients for diffusion operator (deleting them to quick leads to issue in assembling later)
+not able to get block vector working with update
+
+3/30
+working on amr: 
+o define a new estimator: error=erro1+ratio*error2
+  Note that since the errors are computed to the total error, it is fine as long as ratio>0.
+  By default, ratio = 1.
+
+Ideally, I should define a new ThresholdRefiner that refine the union of two refining region
+of two solution. This is not hard. But I am not sure how to do similarly for Derefiner.
+
+
+3/25
+fix a bug from boundary condition when compute J=nable Psi (it did not consider boundary condition)
+
+3/23
+clean up the explicit code; move on to test AMR (explicit)
+
+Should I remove nodes in the mesh (nodes only for ALE type methods??)?
+
+AMR with explicit time stepping is not very clear
+How to do subcyling?
+
+
+good example on amr:
+ ./ex6 -m ../data/fichera.mesh -o 2
+
+3/22 
+After fix the rhs boundary bug, OK for wave case
+tearing mode looks ok so far
+
+exMHD -r 4 -tf 250 -vs 200 -dt .001 -i 2
+
+3/21
+o add visit
+
+for o = 2
+the solutions appear to be first order (from omega and phi); it looks okay
+there is a boundary layer for omega
+
+for o3 r4, the errors from boundary become very large; this is strange
+
+Test:
+exMHD -m ../xperiodic-square.mesh -r 2 -o 2 -tf 3 -vs 50 -dt .001 -visit
+exMHD -m ../xperiodic-square.mesh -r 3 -o 2 -tf 3 -vs 100 -dt .0005 -visit
+
+find a potential bug in the boundary: how could I impose dirichlet boundary in the right hand side?
+
+redo those examples:
+../exMHD -m ../xperiodic-square.mesh -r 2 -o 3 -tf 3 -vs 100 -dt .001 -visit
+../exMHD -m ../xperiodic-square.mesh -r 3 -o 3 -tf 3 -vs 200 -dt .0005 -visit
+../exMHD -m ../xperiodic-square.mesh -r 4 -o 3 -tf 3 -vs 400 -dt .00025 -visit
+
+
+3/20
+o fix a ploting issue for order>2
+o fix the boundary orientation, I believe the normal has to be outward
+o fix the time stepping
+o add visual
+
+
+
+3/19
+the boundary seems working by using but I do not know why it works...
+
+   const int dim=2;
+   VectorArrayCoefficient force(dim);
+   for (int i = 0; i < dim-1; i++)
+   {
+      force.Set(i, new ConstantCoefficient(0.0));
+   }
+   {
+      Vector pull_force(fespace.GetMesh()->bdr_attributes.Max());
+      pull_force = -1.0;
+      force.Set(dim-1, new PWConstCoefficient(pull_force));
+   }
+
+   b.AddDomainIntegrator(new VectorBoundaryLFIntegrator(force));
+   b.Assemble();
+
+   K->FormLinearSystem(ess_tdof_list, psi, b, A, X, B);
+
+   so I will subtract B from z.
+
+>>>using this fix in the full code gives me errors associated with memory, I think I did something very crazy.
+
+Tzanio sent me the working code. What is the difference between AddBdrFaceIntegrator and AddBoundaryIntegrator?
+
+
+3/13
+the explicit code is working, however (they are probably all related to the boundary)
+the current is still not right,
+the boundary condition is not right
+
+note the boundary condition for current should be 0, which is wrong now
+If I turned off background B/Phi, then the current solver is right!
+Reason:
+M*J=K*Psi; however J=0 along the boundary; K*Psi=Psi along the boundary which is inconsistent, I need subtract those off
+
+Luis: if we can figure out how to do it matrix-free in the explicit scheme, we should be good for the implicit scheme. The only matrix that needs to assemble is the mass and stiffness matrix (once in the how solve)
+
+Q:
+what solvers for mass and stiffness matrices I am using?
+
+2019/3/6
+the stucture of explicit scheme seems clear
+the linear parts seem ok
+the nonlinear term requires some work:
+1. for explicit scheme, it is okay: I need to update matrix inside time step (with proper assembling, I am still not sure about how to do it). both PDSolver and exMHD need some work.
+2. for nonlinear problem, how could link nonlinear term properly??
+
+2019/3/3
+move back to MFEM
+
+>>>plot solutions at each time step (see ex16)
+first open a glvis as a server in another terminal
+then run the program; it should plot results auto
+
+11/1
+some useful info for developer:
+https://github.com/mfem/mfem/blob/master/CONTRIBUTING.md#code-overview
+
+10/30/2018
+I believe I could use FE solver by providing the right hand side in two updates
+
+Then I could built right side separatedly
