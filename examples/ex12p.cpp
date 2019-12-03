@@ -284,6 +284,25 @@ int main(int argc, char *argv[])
          x.Save(mode_ofs);
          mode_name.str("");
       }
+
+#ifdef MFEM_USE_ADIOS2
+      if (myid == 0)
+      {
+         std::cout << "Using ADIOS2 BP output\n";
+      }
+      std::string postfix(mesh_file);
+      postfix.erase(0, std::string("../data/").size() );
+      postfix += "_o" + std::to_string(order);
+
+      adios2stream adios2output("ex12p_" + postfix + ".bp",
+                                adios2stream::openmode::out, MPI_COMM_WORLD);
+      pmesh->Print(adios2output);
+      for (int i=0; i<nev; i++)
+      {
+         x = lobpcg->GetEigenvector(i);
+         x.Save(adios2output, "mode_" + std::to_string(i));
+      }
+#endif
    }
 
    // 13. Send the above data by socket to a GLVis server. Use the "n" and "b"

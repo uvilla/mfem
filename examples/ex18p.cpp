@@ -211,6 +211,21 @@ int main(int argc, char *argv[])
       }
    }
 
+#ifdef MFEM_USE_ADIOS2
+   if (mpi.Root())
+   {
+      std::cout << "Using ADIOS2 BP output\n";
+   }
+   std::string postfix(mesh_file);
+   postfix.erase(0, std::string("../data/").size() );
+   postfix += "_p" + std::to_string(problem);
+   postfix += "_o" + std::to_string(order);
+
+   adios2stream adios2output("ex18p_" + postfix + ".bp",
+                             adios2stream::openmode::out, MPI_COMM_WORLD);
+#endif
+
+
    // 9. Set up the nonlinear form corresponding to the DG discretization of the
    //    flux divergence, and assemble the corresponding mass matrix.
    MixedBilinearForm Aflux(&dfes, &fes);
@@ -331,8 +346,33 @@ int main(int argc, char *argv[])
             sout << "parallel " << mpi.WorldSize() << " " << mpi.WorldRank() << "\n";
             sout << "solution\n" << pmesh << mom << flush;
          }
+
+#ifdef MFEM_USE_ADIOS2
+         {
+            adios2output.BeginStep();
+
+            //reduce mesh footprint (step=0 only)
+            if (adios2output.CurrentStep() == 0)
+            {
+               pmesh.Print(adios2output);
+            }
+
+            // reduce time footprint (rank=0 only)
+            if (mpi.Root())
+            {
+               adios2output.SetTime(t);
+            }
+
+            mom.Save(adios2output, "momentum");
+            adios2output.EndStep();
+         }
+#endif
       }
    }
+
+#ifdef MFEM_USE_ADIOS2
+   adios2output.Close();
+#endif
 
    tic_toc.Stop();
    if (mpi.Root()) { cout << " done, " << tic_toc.RealTime() << "s." << endl; }

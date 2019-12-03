@@ -348,6 +348,19 @@ int main(int argc, char *argv[])
          visualize(vis_w, pmesh, &x_gf, &w_gf, "Elastic energy density", true);
       }
    }
+#ifdef MFEM_USE_ADIOS2
+   if (myid == 0)
+   {
+      std::cout << "Using ADIOS2 BP output\n";
+   }
+   std::string postfix(mesh_file);
+   postfix.erase(0, std::string("../data/").size() );
+   postfix += "_solver" + std::to_string(ode_solver_type);
+
+   adios2stream adios2output("ex10p_" + postfix + ".bp",
+                             adios2stream::openmode::out, MPI_COMM_WORLD);
+#endif
+
 
    double ee0 = oper.ElasticEnergy(x_gf);
    double ke0 = oper.KineticEnergy(v_gf);
@@ -395,8 +408,33 @@ int main(int argc, char *argv[])
                visualize(vis_w, pmesh, &x_gf, &w_gf);
             }
          }
+#ifdef MFEM_USE_ADIOS2
+         {
+            adios2output.BeginStep();
+
+            //reduce mesh footprint (step=0 only)
+            if (adios2output.CurrentStep() == 0)
+            {
+               pmesh->Print(adios2output);
+            }
+
+            // reduce time footprint (rank=0 only)
+            if (myid == 0)
+            {
+               adios2output.SetTime(t);
+            }
+
+            v_gf.Save(adios2output, "velocity");
+            w_gf.Save(adios2output, "elastic_energy");
+            adios2output.EndStep();
+         }
+#endif
       }
    }
+
+#ifdef MFEM_USE_ADIOS2
+   adios2output.Close();
+#endif
 
    // 11. Save the displaced mesh, the velocity and elastic energy.
    {

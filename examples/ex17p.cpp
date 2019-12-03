@@ -317,6 +317,28 @@ int main(int argc, char *argv[])
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       sol_ofs << x;
+
+#ifdef MFEM_USE_ADIOS2
+      int myid;
+      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+      if (myid == 0)
+      {
+         std::cout << "Using ADIOS2 BP output\n";
+      }
+      // set appropriate name for bp dataset
+      std::string postfix(mesh_file);
+      postfix.erase(0, std::string("../data/").size() );
+      postfix += "_o" + std::to_string(order);
+
+      // create adios2stream for output with arguments: name, mode, comm
+      // always use the bp or bp4 extension
+      adios2stream adios2output("ex17p_" + postfix + ".bp",
+                                adios2stream::openmode::out, MPI_COMM_WORLD);
+      // print the ParMesh
+      pmesh.Print(adios2output);
+      // save a (ParGridFunction) solution with a variable name
+      x.Save(adios2output, "sol");
+#endif
    }
 
    // 15. Visualization: send data by socket to a GLVis server.

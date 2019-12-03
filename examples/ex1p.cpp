@@ -250,9 +250,23 @@ int main(int argc, char *argv[])
       postfix += "_o" + std::to_string(order);
 
       // create adios2stream for output with arguments: name, mode, comm
-            // always use the bp or bp4 extension
+      // always use the bp or bp4 extension
       adios2stream adios2output("ex1p_" + postfix + ".bp",
                                 adios2stream::openmode::out, MPI_COMM_WORLD);
+
+      // mobius and star-surf data saved without Refined operations
+      if (postfix.find("mobius") == 0 || postfix.find("star-surf") == 0)
+      {
+         adios2output.SetParameter("FullData", "On");
+         adios2output.SetParameter("RefinedData", "Off");
+      }
+      // for other parameters of interest:
+      // https://adios2.readthedocs.io/en/latest/engines/engines.html#bp4
+      // For example:
+      // sets number of data streams inside BP directory
+      // adios2output.SetParameter("SubStreams", "1");
+      // NOTE: I'd rather move the above to a docs area
+
       // print the ParMesh
       pmesh->Print(adios2output);
       // save a (ParGridFunction) solution with a variable name

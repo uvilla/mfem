@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_ADIOS2
       if (myid == 0)
       {
-         std::cout << "Using ADIOS2\n";
+         std::cout << "Using ADIOS2 BP output\n";
       }
       // set appropriate name for bp dataset
       std::string postfix(mesh_file);

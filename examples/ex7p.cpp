@@ -304,8 +304,11 @@ int main(int argc, char *argv[])
                             std::to_string(order) + "_" +
                             std::to_string(ref_levels);
       if (amr > 0) { postfix += "_amr" + std::to_string(amr);}
-      adios2stream adios2output("ex7p_sphere_refined_" + postfix + ".bp",
+
+      adios2stream adios2output("ex7p_" + postfix + ".bp",
                                 adios2stream::openmode::out, MPI_COMM_WORLD);
+      adios2output.SetParameter("FullData", "On");
+      adios2output.SetParameter("RefinedData", "Off");
       pmesh->Print(adios2output);
       x.Save(adios2output, "sol");
 #endif

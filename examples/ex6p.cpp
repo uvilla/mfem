@@ -162,6 +162,19 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
+#ifdef MFEM_USE_ADIOS2
+   if (myid == 0)
+   {
+      std::cout << "Using ADIOS2 BP output\n";
+   }
+   std::string postfix(mesh_file);
+   postfix.erase(0, std::string("../data/").size() );
+   postfix += "_o" + std::to_string(order);
+
+   adios2stream adios2output("ex6p_" + postfix + ".bp",
+                             adios2stream::openmode::out, MPI_COMM_WORLD);
+#endif
+
    // 11. Set up an error estimator. Here we use the Zienkiewicz-Zhu estimator
    //     with L2 projection in the smoothing step to better handle hanging
    //     nodes and parallel partitioning. We need to supply a space for the
@@ -240,6 +253,14 @@ int main(int argc, char *argv[])
          sout << "parallel " << num_procs << " " << myid << "\n";
          sout << "solution\n" << pmesh << x << flush;
       }
+#ifdef MFEM_USE_ADIOS2
+      {
+         adios2output.BeginStep();
+         pmesh.Print(adios2output);
+         x.Save(adios2output, "solution");
+         adios2output.EndStep();
+      }
+#endif
 
       if (global_dofs > max_dofs)
       {
@@ -289,6 +310,10 @@ int main(int argc, char *argv[])
       a.Update();
       b.Update();
    }
+
+#ifdef MFEM_USE_ADIOS2
+   adios2output.Close();
+#endif
 
    MPI_Finalize();
    return 0;

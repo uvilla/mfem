@@ -34,7 +34,8 @@ adios2::Variable<T> SafeDefineVariable(adios2::IO io,
    adios2::Variable<T> variable = io.InquireVariable<T>(variable_name);
    if (variable)
    {
-      if (variable.Count() != count)
+      if (variable.Count() != count &&
+          variable.ShapeID() == adios2::ShapeID::LocalArray)
       {
          variable.SetSelection({start, count});
       }
@@ -78,6 +79,27 @@ adios2::Attribute<T> SafeDefineAttribute(adios2::IO io,
                                 separator );
 }
 
+bool SetBoolParameter(const std::string key,
+                      const std::map<std::string, std::string>& parameters,
+                      const bool default_value)
+{
+   auto it = parameters.find(key);
+   if (it != parameters.end())
+   {
+      std::string value = it->second;
+      std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+      if (value == "on" || value == "true")
+      {
+         return true;
+      }
+      else if ( value == "off" || value == "false")
+      {
+         return false;
+      }
+   }
+   return default_value;
+}
+
 } //end empty namespace
 
 // PUBLIC
@@ -116,12 +138,17 @@ void adios2stream::SetParameters(
    const std::map<std::string, std::string>& parameters)
 {
    io.SetParameters(parameters);
+   refine = SetBoolParameter("RefinedData", parameters, true);
 }
 
 void adios2stream::SetParameter(const std::string key,
                                 const std::string value)
 {
    io.SetParameter(key, value);
+   if (key == "RefinedData")
+   {
+      refine = SetBoolParameter("RefinedData", io.Parameters(), true);
+   }
 }
 
 void adios2stream::BeginStep()
@@ -136,7 +163,7 @@ void adios2stream::BeginStep()
 
 void adios2stream::EndStep()
 {
-   if (!engine || active_step == false)
+   if (!engine || !active_step)
    {
       const std::string message = "MFEM adios2stream error: calling EndStep "
                                   "on uninitialized step (need BeginStep)";
@@ -185,7 +212,10 @@ void adios2stream::Close()
 {
    if (engine)
    {
-      SafeDefineAttribute<std::string>(io, "vtk.xml", VTKSchema() );
+      if (!active_step)
+      {
+         SafeDefineAttribute<std::string>(io, "vtk.xml", VTKSchema() );
+      }
       engine.Close();
    }
    if (adios)
@@ -294,17 +324,11 @@ void adios2stream::Print(const Mesh& mesh, const mode print_mode)
             const FiniteElementSpace* fes = grid_function->FESpace();
             const size_t components = static_cast<size_t>(fes->GetVDim());
             const size_t tuples = size /components;
+            SafeDefineVariable<double>(io, "vertices", {}, {}, {tuples, components} );
 
             if (fes->GetOrdering() == Ordering::byNODES)
             {
-               SafeDefineVariable<double>(io,"vertices", {}, {}, {components, tuples} );
-               SafeDefineAttribute<std::string>(io, "Ordering", "byNODES", "vertices" );
                ordering_by_node = true;
-            }
-            else
-            {
-               SafeDefineVariable<double>(io, "vertices", {}, {}, {tuples, components} );
-               SafeDefineAttribute<std::string>(io, "Ordering", "byVDIM", "vertices" );
             }
          }
       }
@@ -419,7 +443,31 @@ void adios2stream::Print(const Mesh& mesh, const mode print_mode)
       else
       {
          const GridFunction* grid_function = mesh.GetNodes();
-         grid_function->Print(*this, "vertices");
+         if (ordering_by_node)
+         {
+            adios2::Variable<double> varVertices = io.InquireVariable<double>("vertices");
+            // zero-copy access to adios2 buffer to put non-contiguous to contiguous memory
+            adios2::Variable<double>::Span spanVertices = engine.Put(varVertices);
+
+            const size_t size = static_cast<size_t>(grid_function->Size());
+            const FiniteElementSpace* fes = grid_function->FESpace();
+            const size_t components = static_cast<size_t>(fes->GetVDim());
+            const size_t tuples = size /components;
+
+            const double* data = grid_function->GetData();
+
+            for (size_t i = 0; i < tuples; ++i)
+            {
+               for (size_t j = 0; j < components; ++j)
+               {
+                  spanVertices[i*components + j] = data[j*tuples + i];
+               }
+            }
+         }
+         else
+         {
+            grid_function->Print(*this, "vertices");
+         }
       }
    };
 
@@ -453,27 +501,6 @@ void adios2stream::Print(const Mesh& mesh, const mode print_mode)
 void adios2stream::Save(const GridFunction& grid_function,
                         const std::string& variable_name, const data_type type)
 {
-   auto lf_BoolParameter = [&](const std::string key,
-                               const bool default_value) -> bool
-   {
-      const adios2::Params& parameters = io.Parameters();
-      auto it = parameters.find(key);
-      if (it != parameters.end())
-      {
-         std::string value = it->second;
-         std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-         if (value == "on" || value == "true")
-         {
-            return true;
-         }
-         else if ( value == "off" || value == "false")
-         {
-            return false;
-         }
-      }
-      return default_value;
-   };
-
    auto lf_SafeDefine = [&](const std::string& variable_name,
                             const size_t tuples, const size_t components,
                             const Ordering::Type ordering,
@@ -500,17 +527,17 @@ void adios2stream::Save(const GridFunction& grid_function,
    };
 
    //BODY OF FUNCTION STARTS HERE
-   const bool full_data = lf_BoolParameter("FullData", false);
-   const bool refined_data = lf_BoolParameter("RefinedData", true);
+   const std::map<std::string, std::string> parameters = io.Parameters();
+   const bool full_data = SetBoolParameter("FullData", parameters, false);
 
-   if (!full_data && !refined_data)
+   if (!full_data && !refine)
    {
       return;
    }
 
    const FiniteElementSpace* fes = grid_function.FESpace();
 
-   if (refined_data)
+   if (refine)
    {
       const Mesh *mesh = fes->GetMesh();
       const size_t components = static_cast<size_t>(grid_function.VectorDim());
@@ -585,6 +612,11 @@ void adios2stream::Save(const GridFunction& grid_function,
                     std::string(fes->FEColl()->Name()) );
       // calls Vector::Print
       grid_function.Print(*this, variable_name+"/full");
+
+      if (!refine && type == adios2stream::data_type::point_data)
+      {
+         point_data_variables.insert(variable_name+"/full");
+      }
    }
 }
 
@@ -643,20 +675,13 @@ noexcept
 
 std::string adios2stream::VTKSchema() const noexcept
 {
-   // might be extended in the future, from vtk docs:
-   // AOS = Array of Structs (VTK default) = Order::byVDim  XYZ XYZ XYZ
-   // SOA = Struct of Arrays = Order::ByNode  XXXX YYYY ZZZZ
-   const std::string ordering = ordering_by_node? "SOA" : "AOS";
-
    std::string vtkSchema = R"(
 <?xml version="1.0"?>
 <VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">
   <UnstructuredGrid>
     <Piece NumberOfPoints="NumOfVertices" NumberOfCells="NumOfElements">
       <Points>
-        <DataArray Name="vertices" Ordering=")";
-
-   vtkSchema += ordering + "\"/>\n";
+        <DataArray Name="vertices" />)";
 
    vtkSchema += R"(
       </Points>

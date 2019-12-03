@@ -167,7 +167,8 @@ private:
    bool is_mesh_defined = false;
 
    /** ordering of the nodes to be passed to the schema as an attribute
-    *  true: XXX YYY ZZZ, false: XYZ, XYZ, XYZ */
+    *  true: XXX YYY ZZZ, false: XYZ, XYZ, XYZ
+    *  if true it must swap the vertices to Ordering::byDIM*/
    bool ordering_by_node = false;
 
    /** true: refine solution at Save */

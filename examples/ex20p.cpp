@@ -312,7 +312,28 @@ int main(int argc, char *argv[])
            << "solution\n" << pmesh << energy
            << "window_title 'Energy in Phase Space'\n"
            << "keys\n maac\n" << "axis_labels 'q' 'p' 't'\n"<< flush;
+
+#ifdef MFEM_USE_ADIOS2
+      if (myid == 0)
+      {
+         std::cout << "Using ADIOS2 BP output\n";
+      }
+      // set appropriate name for bp dataset
+      const std::string postfix = "o" + std::to_string(order);
+
+      // create adios2stream for output with arguments: name, mode, comm
+      // always use the bp or bp4 extension
+      adios2stream adios2output("ex20p_" + postfix + ".bp",
+                                adios2stream::openmode::out, MPI_COMM_WORLD);
+      adios2output.SetParameter("FullData", "On");
+      adios2output.SetParameter("RefinedData", "Off");
+      // print the ParMesh
+      pmesh.Print(adios2output);
+      // save a (ParGridFunction) solution with a variable name
+      energy.Save(adios2output, "energy");
+#endif
    }
+
 
    MPI_Finalize();
 }
