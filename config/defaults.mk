@@ -133,6 +133,7 @@ MFEM_USE_CUDA          = NO
 MFEM_USE_HIP           = NO
 MFEM_USE_RAJA          = NO
 MFEM_USE_OCCA          = NO
+MFEM_USE_ADIOS2        = NO
 
 # Compile and link options for zlib.
 ZLIB_DIR =
