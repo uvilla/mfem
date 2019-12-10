@@ -407,6 +407,8 @@ int main (int argc, char *argv[])
       for (int j = 0; j < vdofs.Size(); j++) { rdm(vdofs[j]) = 0.0; }
    }
    x -= rdm;
+   x.SetTrueVector();
+   x.SetFromTrueVector();
 
    // 9. Save the starting (prior to the optimization) mesh to a file. This
    //    output can be viewed later using GLVis: "glvis -m perturbed.mesh".
@@ -684,7 +686,9 @@ int main (int argc, char *argv[])
    newton->SetAbsTol(0.0);
    newton->SetPrintLevel(verbosity_level >= 1 ? 1 : -1);
    newton->SetOperator(a);
-   newton->Mult(b, x);
+   newton->Mult(b, x.GetTrueVector());
+   x.SetFromTrueVector();
+
    if (newton->GetConverged() == false)
    {
       cout << "NewtonIteration: rtol = " << newton_rtol << " not achieved."
