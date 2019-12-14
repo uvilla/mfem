@@ -42,6 +42,10 @@ New and updated examples and miniapps
 - The mesh-optimizer and pmesh-optimizer miniapps have been updated to
   demonstrate the new r-adaptivity capabilities of TMOP.
 
+New and improved solvers and preconditioners
+--------------------------------------------
+- Added support for using the Ginkgo library's solvers and preconditioners.
+
 Miscellaneous
 -------------
 - Upgraded the SUNDIALS interface to utilize SUNDIALS version 5.0.  This
