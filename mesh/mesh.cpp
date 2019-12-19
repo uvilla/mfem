@@ -2404,14 +2404,14 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
          y = sfc[3*k + 1];
          z = sfc[3*k + 2];
 
-         ind[0] = VTX(x  , y  , z  );
-         ind[1] = VTX(x+1, y  , z  );
+         ind[0] = VTX(x, y, z  );
+         ind[1] = VTX(x+1, y, z  );
          ind[2] = VTX(x+1, y+1, z  );
-         ind[3] = VTX(x  , y+1, z  );
-         ind[4] = VTX(x  , y  , z+1);
-         ind[5] = VTX(x+1, y  , z+1);
+         ind[3] = VTX(x, y+1, z  );
+         ind[4] = VTX(x, y, z+1);
+         ind[5] = VTX(x+1, y, z+1);
          ind[6] = VTX(x+1, y+1, z+1);
-         ind[7] = VTX(x  , y+1, z+1);
+         ind[7] = VTX(x, y+1, z+1);
 
          AddHex(ind, 1);
       }
@@ -2424,14 +2424,14 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
          {
             for (x = 0; x < nx; x++)
             {
-               ind[0] = VTX(x  , y  , z  );
-               ind[1] = VTX(x+1, y  , z  );
+               ind[0] = VTX(x, y, z  );
+               ind[1] = VTX(x+1, y, z  );
                ind[2] = VTX(x+1, y+1, z  );
-               ind[3] = VTX(x  , y+1, z  );
-               ind[4] = VTX(x  , y  , z+1);
-               ind[5] = VTX(x+1, y  , z+1);
+               ind[3] = VTX(x, y+1, z  );
+               ind[4] = VTX(x, y, z+1);
+               ind[5] = VTX(x+1, y, z+1);
                ind[6] = VTX(x+1, y+1, z+1);
-               ind[7] = VTX(x  , y+1, z+1);
+               ind[7] = VTX(x, y+1, z+1);
                if (type == Element::TETRAHEDRON)
                {
                   AddHexAsTets(ind, 1);
@@ -2455,10 +2455,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (x = 0; x < nx; x++)
       {
-         ind[0] = VTX(x  , y  , 0);
-         ind[1] = VTX(x  , y+1, 0);
+         ind[0] = VTX(x, y, 0);
+         ind[1] = VTX(x, y+1, 0);
          ind[2] = VTX(x+1, y+1, 0);
-         ind[3] = VTX(x+1, y  , 0);
+         ind[3] = VTX(x+1, y, 0);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 1);
@@ -2478,10 +2478,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (x = 0; x < nx; x++)
       {
-         ind[0] = VTX(x  , y  , nz);
-         ind[1] = VTX(x+1, y  , nz);
+         ind[0] = VTX(x, y, nz);
+         ind[1] = VTX(x+1, y, nz);
          ind[2] = VTX(x+1, y+1, nz);
-         ind[3] = VTX(x  , y+1, nz);
+         ind[3] = VTX(x, y+1, nz);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 6);
@@ -2501,10 +2501,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (y = 0; y < ny; y++)
       {
-         ind[0] = VTX(0  , y  , z  );
-         ind[1] = VTX(0  , y  , z+1);
-         ind[2] = VTX(0  , y+1, z+1);
-         ind[3] = VTX(0  , y+1, z  );
+         ind[0] = VTX(0, y, z  );
+         ind[1] = VTX(0, y, z+1);
+         ind[2] = VTX(0, y+1, z+1);
+         ind[3] = VTX(0, y+1, z  );
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 5);
@@ -2520,10 +2520,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (y = 0; y < ny; y++)
       {
-         ind[0] = VTX(nx, y  , z  );
+         ind[0] = VTX(nx, y, z  );
          ind[1] = VTX(nx, y+1, z  );
          ind[2] = VTX(nx, y+1, z+1);
-         ind[3] = VTX(nx, y  , z+1);
+         ind[3] = VTX(nx, y, z+1);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 3);
@@ -2539,10 +2539,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (z = 0; z < nz; z++)
       {
-         ind[0] = VTX(x  , 0, z  );
+         ind[0] = VTX(x, 0, z  );
          ind[1] = VTX(x+1, 0, z  );
          ind[2] = VTX(x+1, 0, z+1);
-         ind[3] = VTX(x  , 0, z+1);
+         ind[3] = VTX(x, 0, z+1);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 2);
@@ -2558,8 +2558,8 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (z = 0; z < nz; z++)
       {
-         ind[0] = VTX(x  , ny, z  );
-         ind[1] = VTX(x  , ny, z+1);
+         ind[0] = VTX(x, ny, z  );
+         ind[1] = VTX(x, ny, z+1);
          ind[2] = VTX(x+1, ny, z+1);
          ind[3] = VTX(x+1, ny, z  );
          if (type == Element::TETRAHEDRON)
@@ -8518,6 +8518,170 @@ void Mesh::PrintVTK(std::ostream &out)
    }
    out.flush();
 }
+
+void Mesh::PrintVTU(std::string fname)
+{
+   fname = fname + ".vtu";
+   std::fstream out(fname.c_str(),std::ios::out);
+   out << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
+       << std::endl;
+   out << "<UnstructuredGrid>" << std::endl;
+   PrintVTU(out,1);
+   out << "</Piece>" <<
+       std::endl; //needed to close the piece open in the PrintVTU method
+   out << "</UnstructuredGrid>" << std::endl;
+   out << "</VTKFile>" << std::endl;
+
+   out.close();
+
+}
+
+void Mesh::PrintVTU(std::ostream &out, int ref)
+{
+   int np, nc, size;
+   RefinedGeometry *RefG;
+   DenseMatrix pmat;
+
+   // count the points, cells, size
+   np = nc = size = 0;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Geometry::Type geom = GetElementBaseGeometry(i);
+      int nv = Geometries.GetVertices(geom)->GetNPoints();
+      RefG = GlobGeometryRefiner.Refine(geom, ref, 1);
+      np += RefG->RefPts.GetNPoints();
+      nc += RefG->RefGeoms.Size() / nv;
+      size += (RefG->RefGeoms.Size() / nv) * (nv + 1);
+   }
+
+
+   out << "<Piece NumberOfPoints=\"" << np << "\" NumberOfCells=\"" << nc << "\">"
+       << std::endl;
+
+   //print out the points
+   out << "<Points>" << std::endl;
+   out << "<DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">"
+       << std::endl;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      RefG = GlobGeometryRefiner.Refine(
+                GetElementBaseGeometry(i), ref, 1);
+
+      GetElementTransformation(i)->Transform(RefG->RefPts, pmat);
+
+      for (int j = 0; j < pmat.Width(); j++)
+      {
+         out << pmat(0, j) << ' ';
+         if (pmat.Height() > 1)
+         {
+            out << pmat(1, j) << ' ';
+            if (pmat.Height() > 2)
+            {
+               out << pmat(2, j);
+            }
+            else
+            {
+               out << 0.0;
+            }
+         }
+         else
+         {
+            out << 0.0 << ' ' << 0.0;
+         }
+         out << '\n';
+      }
+   }
+   out << "</DataArray>" << std::endl;
+   out << "</Points>" << std::endl;
+
+   out << "<Cells>" << std::endl;
+   out << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" <<
+       std::endl;
+   //connectivity
+   std::vector<int> offset;
+   int coff = 0;
+   np = 0;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Geometry::Type geom = GetElementBaseGeometry(i);
+      int nv = Geometries.GetVertices(geom)->GetNPoints();
+      RefG = GlobGeometryRefiner.Refine(geom, ref, 1);
+      Array<int> &RG = RefG->RefGeoms;
+
+      for (int j = 0; j < RG.Size(); )
+      {
+         //out << nv;
+         coff = coff+nv;
+         offset.push_back(coff);
+
+         for (int k = 0; k < nv; k++, j++)
+         {
+            out << ' ' << np + RG[j];
+         }
+         out << '\n';
+      }
+      np += RefG->RefPts.GetNPoints();
+   }
+   out << "</DataArray>" << std::endl;
+
+   out << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" <<
+       std::endl;
+   //offsets
+   for (size_t ii=0; ii<offset.size(); ii++) { out<<offset[ii]<<std::endl;}
+   out << "</DataArray>" << std::endl;
+   out << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" <<
+       std::endl;
+   //cell types
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Geometry::Type geom = GetElementBaseGeometry(i);
+      int nv = Geometries.GetVertices(geom)->GetNPoints();
+      RefG = GlobGeometryRefiner.Refine(geom, ref, 1);
+      Array<int> &RG = RefG->RefGeoms;
+      int vtk_cell_type = 5;
+
+      switch (geom)
+      {
+         case Geometry::POINT:        vtk_cell_type = 1;   break;
+         case Geometry::SEGMENT:      vtk_cell_type = 3;   break;
+         case Geometry::TRIANGLE:     vtk_cell_type = 5;   break;
+         case Geometry::SQUARE:       vtk_cell_type = 9;   break;
+         case Geometry::TETRAHEDRON:  vtk_cell_type = 10;  break;
+         case Geometry::CUBE:         vtk_cell_type = 12;  break;
+         case Geometry::PRISM:        vtk_cell_type = 13;  break;
+         default:
+            MFEM_ABORT("Unrecognized VTK element type \"" << geom << "\"");
+            break;
+      }
+
+      for (int j = 0; j < RG.Size(); j += nv)
+      {
+         out << vtk_cell_type << '\n';
+      }
+   }
+   out << "</DataArray>" << std::endl;
+   out << "</Cells>" << std::endl;
+
+   out << "<CellData Scalars=\"material\">" << std::endl;
+   out << "<DataArray type=\"Int32\" Name=\"material\" format=\"ascii\">" <<
+       std::endl;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Geometry::Type geom = GetElementBaseGeometry(i);
+      int nv = Geometries.GetVertices(geom)->GetNPoints();
+      RefG = GlobGeometryRefiner.Refine(geom, ref, 1);
+      int attr = GetAttribute(i);
+      for (int j = 0; j < RefG->RefGeoms.Size(); j += nv)
+      {
+         out << attr << '\n';
+      }
+   }
+   out << "</DataArray>" << std::endl;
+
+
+   out << "</CellData>" << std::endl;
+}
+
 
 void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
 {

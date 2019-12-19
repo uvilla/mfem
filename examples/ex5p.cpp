@@ -326,7 +326,16 @@ int main(int argc, char *argv[])
                       DataCollection::PARALLEL_FORMAT);
    visit_dc.Save();
 
-   // 16. Send the solution by socket to a GLVis server.
+   // 16. Save data in the ParaView format
+   ParaViewDataCollection paraview_dc("PVExample5P", pmesh);
+   paraview_dc.SetLevelsOfDetail(1);
+   paraview_dc.SetCycle(1);
+   paraview_dc.SetTime(0.0);
+   paraview_dc.RegisterField("velocity",u);
+   paraview_dc.RegisterField("pressure",p);
+   paraview_dc.Save();
+
+   // 17. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -346,7 +355,7 @@ int main(int argc, char *argv[])
              << endl;
    }
 
-   // 17. Free the used memory.
+   // 18. Free the used memory.
    delete fform;
    delete gform;
    delete u;
