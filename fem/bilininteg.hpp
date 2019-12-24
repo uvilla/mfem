@@ -15,6 +15,7 @@
 #include "../config/config.hpp"
 #include "nonlininteg.hpp"
 #include "fespace.hpp"
+#include "libceed/ceed.hpp"
 
 namespace mfem
 {
@@ -1682,17 +1683,54 @@ private:
    int dim, ne, dofs1D, quad1D;
    Vector pa_data;
 
+#ifdef MFEM_USE_CEED
+   // CEED extension
+   CeedData* ceedDataPtr;
+#endif
+
 public:
    /// Construct a diffusion integrator with coefficient Q = 1
-   DiffusionIntegrator() { Q = NULL; MQ = NULL; maps = NULL; geom = NULL; }
+   DiffusionIntegrator()
+   {
+      Q = NULL;
+      MQ = NULL;
+      maps = NULL;
+      geom = NULL;
+#ifdef MFEM_USE_CEED
+      ceedDataPtr = NULL;
+#endif
+   }
 
    /// Construct a diffusion integrator with a scalar coefficient q
    DiffusionIntegrator(Coefficient &q)
-      : Q(&q) { MQ = NULL; maps = NULL; geom = NULL; }
+      : Q(&q)
+   {
+      MQ = NULL;
+      maps = NULL;
+      geom = NULL;
+#ifdef MFEM_USE_CEED
+      ceedDataPtr = NULL;
+#endif
+   }
 
    /// Construct a diffusion integrator with a matrix coefficient q
    DiffusionIntegrator(MatrixCoefficient &q)
-      : MQ(&q) { Q = NULL; maps = NULL; geom = NULL; }
+      : MQ(&q)
+   {
+      Q = NULL;
+      maps = NULL;
+      geom = NULL;
+#ifdef MFEM_USE_CEED
+      ceedDataPtr = NULL;
+#endif
+   }
+
+   virtual ~DiffusionIntegrator()
+   {
+#ifdef MFEM_USE_CEED
+      delete ceedDataPtr;
+#endif
+   }
 
    /** Given a particular Finite Element
        computes the element stiffness matrix elmat. */
@@ -1744,14 +1782,40 @@ protected:
    const GeometricFactors *geom;  ///< Not owned
    int dim, ne, nq, dofs1D, quad1D;
 
+#ifdef MFEM_USE_CEED
+   // CEED extension
+   CeedData* ceedDataPtr;
+#endif
+
 public:
    MassIntegrator(const IntegrationRule *ir = NULL)
-      : BilinearFormIntegrator(ir) { Q = NULL; maps = NULL; geom = NULL; }
+      : BilinearFormIntegrator(ir)
+   {
+      Q = NULL;
+      maps = NULL;
+      geom = NULL;
+#ifdef MFEM_USE_CEED
+      ceedDataPtr = NULL;
+#endif
+   }
 
    /// Construct a mass integrator with coefficient q
    MassIntegrator(Coefficient &q, const IntegrationRule *ir = NULL)
-      : BilinearFormIntegrator(ir), Q(&q) { maps = NULL; geom = NULL; }
+      : BilinearFormIntegrator(ir), Q(&q)
+   {
+      maps = NULL;
+      geom = NULL;
+#ifdef MFEM_USE_CEED
+      ceedDataPtr = NULL;
+#endif
+   }
 
+   virtual ~MassIntegrator()
+   {
+#ifdef MFEM_USE_CEED
+      delete ceedDataPtr;
+#endif
+   }
    /** Given a particular Finite Element
        computes the element mass matrix elmat. */
    virtual void AssembleElementMatrix(const FiniteElement &el,
