@@ -68,6 +68,10 @@ Meshing improvements
 
 Discretization improvements
 ---------------------------
+- Added support for GSLIB-FindPoints, a general high-order interpolation utility
+  that can robustly evaluate a GridFunction in an arbitrary collection of points
+  in physical space. See INSTALL for details on building MFEM with GSLIB, and
+  miniapps/gslib for examples of how to use this feature.
 
 Linear and nonlinear solvers
 ----------------------------
@@ -80,6 +84,12 @@ Linear and nonlinear solvers
 
 New and updated examples and miniapps
 -------------------------------------
+- Added two new miniapps: Find Points (serial + parallel) and Field Diff in
+  miniapps/gslib that show how GSLIB-FindPoints can be used to interpolate a
+  (Par)GridFunction in an arbitrary number of physical space points in 2D and
+  3D. The GridFunction must be in H1 and in the same space as the mesh that is
+  used to find the points.
+
 - The mesh-optimizer and pmesh-optimizer miniapps have been updated to
   demonstrate the new r-adaptivity capabilities of TMOP.
 
