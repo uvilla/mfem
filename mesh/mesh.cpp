@@ -2405,14 +2405,14 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
          y = sfc[3*k + 1];
          z = sfc[3*k + 2];
 
-         ind[0] = VTX(x, y, z  );
-         ind[1] = VTX(x+1, y, z  );
+         ind[0] = VTX(x  , y  , z  );
+         ind[1] = VTX(x+1, y  , z  );
          ind[2] = VTX(x+1, y+1, z  );
-         ind[3] = VTX(x, y+1, z  );
-         ind[4] = VTX(x, y, z+1);
-         ind[5] = VTX(x+1, y, z+1);
+         ind[3] = VTX(x  , y+1, z  );
+         ind[4] = VTX(x  , y  , z+1);
+         ind[5] = VTX(x+1, y  , z+1);
          ind[6] = VTX(x+1, y+1, z+1);
-         ind[7] = VTX(x, y+1, z+1);
+         ind[7] = VTX(x  , y+1, z+1);
 
          AddHex(ind, 1);
       }
@@ -2425,14 +2425,14 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
          {
             for (x = 0; x < nx; x++)
             {
-               ind[0] = VTX(x, y, z  );
-               ind[1] = VTX(x+1, y, z  );
+               ind[0] = VTX(x  , y  , z  );
+               ind[1] = VTX(x+1, y  , z  );
                ind[2] = VTX(x+1, y+1, z  );
-               ind[3] = VTX(x, y+1, z  );
-               ind[4] = VTX(x, y, z+1);
-               ind[5] = VTX(x+1, y, z+1);
+               ind[3] = VTX(x  , y+1, z  );
+               ind[4] = VTX(x  , y  , z+1);
+               ind[5] = VTX(x+1, y  , z+1);
                ind[6] = VTX(x+1, y+1, z+1);
-               ind[7] = VTX(x, y+1, z+1);
+               ind[7] = VTX(  x, y+1, z+1);
                if (type == Element::TETRAHEDRON)
                {
                   AddHexAsTets(ind, 1);
@@ -2456,10 +2456,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (x = 0; x < nx; x++)
       {
-         ind[0] = VTX(x, y, 0);
-         ind[1] = VTX(x, y+1, 0);
+         ind[0] = VTX(x  , y  , 0);
+         ind[1] = VTX(x  , y+1, 0);
          ind[2] = VTX(x+1, y+1, 0);
-         ind[3] = VTX(x+1, y, 0);
+         ind[3] = VTX(x+1, y  , 0);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 1);
@@ -2479,10 +2479,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (x = 0; x < nx; x++)
       {
-         ind[0] = VTX(x, y, nz);
-         ind[1] = VTX(x+1, y, nz);
+         ind[0] = VTX(x  , y  , nz);
+         ind[1] = VTX(x+1, y  , nz);
          ind[2] = VTX(x+1, y+1, nz);
-         ind[3] = VTX(x, y+1, nz);
+         ind[3] = VTX(x  , y+1, nz);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 6);
@@ -2502,10 +2502,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (y = 0; y < ny; y++)
       {
-         ind[0] = VTX(0, y, z  );
-         ind[1] = VTX(0, y, z+1);
-         ind[2] = VTX(0, y+1, z+1);
-         ind[3] = VTX(0, y+1, z  );
+         ind[0] = VTX(0  , y  , z  );
+         ind[1] = VTX(0  , y  , z+1);
+         ind[2] = VTX(0  , y+1, z+1);
+         ind[3] = VTX(0  , y+1, z  );
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 5);
@@ -2521,10 +2521,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (y = 0; y < ny; y++)
       {
-         ind[0] = VTX(nx, y, z  );
+         ind[0] = VTX(nx, y  , z  );
          ind[1] = VTX(nx, y+1, z  );
          ind[2] = VTX(nx, y+1, z+1);
-         ind[3] = VTX(nx, y, z+1);
+         ind[3] = VTX(nx, y  , z+1);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 3);
@@ -2540,10 +2540,10 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (z = 0; z < nz; z++)
       {
-         ind[0] = VTX(x, 0, z  );
+         ind[0] = VTX(x  , 0, z  );
          ind[1] = VTX(x+1, 0, z  );
          ind[2] = VTX(x+1, 0, z+1);
-         ind[3] = VTX(x, 0, z+1);
+         ind[3] = VTX(x  , 0, z+1);
          if (type == Element::TETRAHEDRON)
          {
             AddBdrQuadAsTriangles(ind, 2);
@@ -2559,8 +2559,8 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
    {
       for (z = 0; z < nz; z++)
       {
-         ind[0] = VTX(x, ny, z  );
-         ind[1] = VTX(x, ny, z+1);
+         ind[0] = VTX(x  , ny, z  );
+         ind[1] = VTX(x  , ny, z+1);
          ind[2] = VTX(x+1, ny, z+1);
          ind[3] = VTX(x+1, ny, z  );
          if (type == Element::TETRAHEDRON)
@@ -8562,12 +8562,11 @@ void Mesh::PrintVTU(std::string fname)
    out << "<UnstructuredGrid>" << std::endl;
    PrintVTU(out,1);
    out << "</Piece>" <<
-       std::endl; //needed to close the piece open in the PrintVTU method
+       std::endl; // needed to close the piece open in the PrintVTU method
    out << "</UnstructuredGrid>" << std::endl;
    out << "</VTKFile>" << std::endl;
 
    out.close();
-
 }
 
 void Mesh::PrintVTU(std::ostream &out, int ref)
@@ -8588,11 +8587,10 @@ void Mesh::PrintVTU(std::ostream &out, int ref)
       size += (RefG->RefGeoms.Size() / nv) * (nv + 1);
    }
 
-
    out << "<Piece NumberOfPoints=\"" << np << "\" NumberOfCells=\"" << nc << "\">"
        << std::endl;
 
-   //print out the points
+   // print out the points
    out << "<Points>" << std::endl;
    out << "<DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">"
        << std::endl;
@@ -8631,7 +8629,7 @@ void Mesh::PrintVTU(std::ostream &out, int ref)
    out << "<Cells>" << std::endl;
    out << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" <<
        std::endl;
-   //connectivity
+   // connectivity
    std::vector<int> offset;
    int coff = 0;
    np = 0;
@@ -8644,7 +8642,7 @@ void Mesh::PrintVTU(std::ostream &out, int ref)
 
       for (int j = 0; j < RG.Size(); )
       {
-         //out << nv;
+         // out << nv;
          coff = coff+nv;
          offset.push_back(coff);
 
@@ -8660,12 +8658,12 @@ void Mesh::PrintVTU(std::ostream &out, int ref)
 
    out << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" <<
        std::endl;
-   //offsets
+   // offsets
    for (size_t ii=0; ii<offset.size(); ii++) { out<<offset[ii]<<std::endl;}
    out << "</DataArray>" << std::endl;
    out << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" <<
        std::endl;
-   //cell types
+   // cell types
    for (int i = 0; i < GetNE(); i++)
    {
       Geometry::Type geom = GetElementBaseGeometry(i);
@@ -8711,8 +8709,6 @@ void Mesh::PrintVTU(std::ostream &out, int ref)
       }
    }
    out << "</DataArray>" << std::endl;
-
-
    out << "</CellData>" << std::endl;
 }
 
