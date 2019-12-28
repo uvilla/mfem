@@ -9,19 +9,27 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-if (MFEM_USE_MPI)
-  add_mfem_miniapp(pmtop
-    MAIN pmtop.cpp
-    EXTRA_SOURCES elast_solver.cpp pde_filter.cpp
-    EXTRA_HEADERS elast_solver.hpp pde_filter.hpp
+#if (MFEM_USE_MPI)
+#  add_mfem_miniapp(pmtop
+#    MAIN pmtop.cpp
+#    EXTRA_SOURCES elast_solver.cpp pde_filter.cpp
+#    EXTRA_HEADERS elast_solver.hpp pde_filter.hpp
+#    LIBRARIES mfem)
+
+#endif()
+
+
+add_mfem_miniapp(ststsf
+    MAIN ststfilts.cpp
+    EXTRA_SOURCES   pde_filter.cpp elast_solver.cpp
+    EXTRA_HEADERS   pde_filter.hpp elast_solver.hpp
     LIBRARIES mfem)
 
+
+if (MFEM_USE_MPI)
+add_mfem_miniapp(ptstsf
+	MAIN ptstfilts.cpp
+ 	EXTRA_SOURCES pde_filter.cpp
+    EXTRA_HEADERS pde_filter.hpp
+    LIBRARIES mfem)
 endif()
-
-
-add_mfem_miniapp(smtop
-	MAIN smtop.cpp
- 	EXTRA_SOURCES elast_solver.cpp pde_filter.cpp
-    	EXTRA_HEADERS elast_solver.hpp pde_filter.hpp
-    	LIBRARIES mfem)
-
