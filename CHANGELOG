@@ -33,9 +33,6 @@ libCEED support
   modes are available as MFEM device backends (ceed-cpu and ceed-cuda), using
   some of the best performing CPU and GPU backends from libCEED.
 
-Discretization improvements
----------------------------
-
 Meshing improvements
 --------------------
 - Added support for non-conforming prism AMR, including coarsening and parallel
