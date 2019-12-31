@@ -1758,7 +1758,7 @@ public:
                                     ElementTransformation &Trans,
                                     Vector &flux, Vector *d_energy = NULL);
 
-   virtual void AssemblePA(const FiniteElementSpace&);
+   virtual void AssemblePA(const FiniteElementSpace &fes);
 
    virtual void AssembleDiagonalPA(Vector &diag) const;
 
@@ -1826,7 +1826,7 @@ public:
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
 
-   virtual void AssemblePA(const FiniteElementSpace&);
+   virtual void AssemblePA(const FiniteElementSpace &fes);
 
    virtual void AssembleDiagonalPA(Vector &diag) const;
 
@@ -1906,6 +1906,11 @@ protected:
    Coefficient *Q;
    VectorCoefficient *VQ;
    MatrixCoefficient *MQ;
+   // PA extension
+   Vector pa_data;
+   const DofToQuad *maps;         ///< Not owned
+   const GeometricFactors *geom;  ///< Not owned
+   int dim, ne, nq, dofs1D, quad1D;
 
 public:
    /// Construct an integrator with coefficient 1.0
@@ -1937,6 +1942,8 @@ public:
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
+   virtual void AssemblePA(const FiniteElementSpace &fes);
+   virtual void AddMultPA(const Vector &x, Vector &y) const;
 };
 
 
@@ -2203,6 +2210,12 @@ class VectorDiffusionIntegrator : public BilinearFormIntegrator
 protected:
    Coefficient *Q;
 
+   // PA extension
+   const DofToQuad *maps;         ///< Not owned
+   const GeometricFactors *geom;  ///< Not owned
+   int dim, ne, dofs1D, quad1D;
+   Vector pa_data;
+
 private:
    DenseMatrix Jinv;
    DenseMatrix dshape;
@@ -2219,6 +2232,8 @@ public:
    virtual void AssembleElementVector(const FiniteElement &el,
                                       ElementTransformation &Tr,
                                       const Vector &elfun, Vector &elvect);
+   virtual void AssemblePA(const FiniteElementSpace &fes);
+   virtual void AddMultPA(const Vector &x, Vector &y) const;
 };
 
 /** Integrator for the linear elasticity form:
