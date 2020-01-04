@@ -125,6 +125,7 @@ void MassIntegrator::AssemblePA(const FiniteElementSpace &fes)
    }
 }
 
+
 template<int T_D1D = 0, int T_Q1D = 0>
 static void PAMassAssembleDiagonal2D(const int NE,
                                      const Array<double> &b,
@@ -434,6 +435,7 @@ void MassIntegrator::AssembleDiagonalPA(Vector &diag) const
 {
    PAMassAssembleDiagonal(dim, dofs1D, quad1D, ne, maps->B, pa_data, diag);
 }
+
 
 #ifdef MFEM_USE_OCCA
 // OCCA PA Mass Apply 2D kernel
