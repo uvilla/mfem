@@ -130,6 +130,9 @@ New and improved solvers and preconditioners
   3D. The GridFunction must be in H1 and in the same space as the mesh that is
   used to find the points.
 
+- Extended the support for partial assembly to vector mass and vector diffusion
+  bilinear integrators.
+
 Miscellaneous
 -------------
 - Upgraded the SUNDIALS interface to utilize version 5.0. This necessitated a
