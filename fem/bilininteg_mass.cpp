@@ -22,16 +22,18 @@ namespace mfem
 // PA Mass Integrator
 
 // PA Mass Assemble kernel
-void MassIntegrator::AssemblePA(const FiniteElementSpace &fes)
+
+void MassIntegrator::SetupPA(const FiniteElementSpace &fes, const bool force)
 {
    // Assuming the same element type
+   fespace = &fes;
    Mesh *mesh = fes.GetMesh();
    if (mesh->GetNE() == 0) { return; }
    const FiniteElement &el = *fes.GetFE(0);
    ElementTransformation *T = mesh->GetElementTransformation(0);
    const IntegrationRule *ir = IntRule ? IntRule : &GetRule(el, el, *T);
 #ifdef MFEM_USE_CEED
-   if (DeviceCanUseCeed())
+   if (DeviceCanUseCeed() && !force)
    {
       if (ceedDataPtr) { delete ceedDataPtr; }
       CeedData* ptr = new CeedData();
@@ -123,6 +125,11 @@ void MassIntegrator::AssemblePA(const FiniteElementSpace &fes)
          }
       });
    }
+}
+
+void MassIntegrator::AssemblePA(const FiniteElementSpace &fes)
+{
+   SetupPA(fes);
 }
 
 
@@ -431,8 +438,9 @@ static void PAMassAssembleDiagonal(const int dim, const int D1D,
    MFEM_ABORT("Unknown kernel.");
 }
 
-void MassIntegrator::AssembleDiagonalPA(Vector &diag) const
+void MassIntegrator::AssembleDiagonalPA(Vector &diag)
 {
+   if (pa_data.Size()==0) { SetupPA(*fespace, true); }
    PAMassAssembleDiagonal(dim, dofs1D, quad1D, ne, maps->B, pa_data, diag);
 }
 

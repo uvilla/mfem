@@ -199,15 +199,17 @@ static void PADiffusionSetup(const int dim,
    }
 }
 
-void DiffusionIntegrator::AssemblePA(const FiniteElementSpace &fes)
+void DiffusionIntegrator::SetupPA(const FiniteElementSpace &fes,
+                                  const bool force)
 {
    // Assuming the same element type
+   fespace = &fes;
    Mesh *mesh = fes.GetMesh();
    if (mesh->GetNE() == 0) { return; }
    const FiniteElement &el = *fes.GetFE(0);
    const IntegrationRule *ir = IntRule ? IntRule : &GetRule(el, el);
 #ifdef MFEM_USE_CEED
-   if (DeviceCanUseCeed())
+   if (DeviceCanUseCeed() && !force)
    {
       if (ceedDataPtr) { delete ceedDataPtr; }
       CeedData* ptr = new CeedData();
@@ -252,6 +254,11 @@ void DiffusionIntegrator::AssemblePA(const FiniteElementSpace &fes)
    }
    PADiffusionSetup(dim, dofs1D, quad1D, ne, ir->GetWeights(), geom->J, coeff,
                     pa_data);
+}
+
+void DiffusionIntegrator::AssemblePA(const FiniteElementSpace &fes)
+{
+   SetupPA(fes);
 }
 
 
@@ -670,8 +677,9 @@ static void PADiffusionAssembleDiagonal(const int dim,
    MFEM_ABORT("Unknown kernel.");
 }
 
-void DiffusionIntegrator::AssembleDiagonalPA(Vector &diag) const
+void DiffusionIntegrator::AssembleDiagonalPA(Vector &diag)
 {
+   if (pa_data.Size()==0) { SetupPA(*fespace, true); }
    PADiffusionAssembleDiagonal(dim, dofs1D, quad1D, ne,
                                maps->B, maps->G, pa_data, diag);
 }

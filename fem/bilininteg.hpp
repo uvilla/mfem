@@ -46,7 +46,7 @@ public:
    virtual void AssemblePA(const FiniteElementSpace &fes);
 
    /// Assemble diagonal and add it to Vector @a diag.
-   virtual void AssembleDiagonalPA(Vector &diag) const;
+   virtual void AssembleDiagonalPA(Vector &diag);
 
    /// Method for partially assembled action.
    /** Perform the action of integrator on the input @a x and add the result to
@@ -1678,6 +1678,7 @@ private:
 #endif
 
    // PA extension
+   const FiniteElementSpace *fespace;
    const DofToQuad *maps;         ///< Not owned
    const GeometricFactors *geom;  ///< Not owned
    int dim, ne, dofs1D, quad1D;
@@ -1760,12 +1761,14 @@ public:
 
    virtual void AssemblePA(const FiniteElementSpace &fes);
 
-   virtual void AssembleDiagonalPA(Vector &diag) const;
+   virtual void AssembleDiagonalPA(Vector &diag);
 
    virtual void AddMultPA(const Vector&, Vector&) const;
 
    static const IntegrationRule &GetRule(const FiniteElement &trial_fe,
                                          const FiniteElement &test_fe);
+
+   void SetupPA(const FiniteElementSpace &fes, const bool force = false);
 };
 
 /** Class for local mass matrix assembling a(u,v) := (Q u, v) */
@@ -1777,6 +1780,7 @@ protected:
 #endif
    Coefficient *Q;
    // PA extension
+   const FiniteElementSpace *fespace;
    Vector pa_data;
    const DofToQuad *maps;         ///< Not owned
    const GeometricFactors *geom;  ///< Not owned
@@ -1828,13 +1832,15 @@ public:
 
    virtual void AssemblePA(const FiniteElementSpace &fes);
 
-   virtual void AssembleDiagonalPA(Vector &diag) const;
+   virtual void AssembleDiagonalPA(Vector &diag);
 
    virtual void AddMultPA(const Vector&, Vector&) const;
 
    static const IntegrationRule &GetRule(const FiniteElement &trial_fe,
                                          const FiniteElement &test_fe,
                                          ElementTransformation &Trans);
+
+   void SetupPA(const FiniteElementSpace &fes, const bool force = false);
 };
 
 class BoundaryMassIntegrator : public MassIntegrator
