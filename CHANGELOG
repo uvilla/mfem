@@ -79,6 +79,13 @@ Discretization improvements
   See the new methods AssembleDiagonal in BilinearForm, AssembleDiagonalPA in
   BilinearFormIntegrator and the implementations in fem/bilininteg_*.cpp.
 
+- Added FormRectangularLinearSystem method to MixedBilinearForm. This enables
+  repeated application of essential boundary conditions to rectangular
+  operators.
+
+- The divergence and gradient bilinear integrators were added with full and
+  partial assembly capabilities.
+
 Linear and nonlinear solvers
 ----------------------------
 - Added a general interface for specifying and solving nonlinear constrained
