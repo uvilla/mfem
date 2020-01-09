@@ -15,8 +15,8 @@
 //               Maxwell equation curl curl E - \omega^2 E = f with a PML
 //               We discretize with Nedelec finite elements in 2D or 3D.
 //
-//               The example also demonstrates the use complex valued bilear and linear forms.
-//               We recommend viewing examples 22 before viewing this example.
+//               The example also demonstrates the use of complex valued bilinear and linear forms.
+//               We recommend viewing example 22 before viewing this example.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -47,7 +47,6 @@ void compute_pml_elem_list(ParMesh * pmesh, Array<int> & elem_pml);
 
 double omega;
 int dim;
-int src = 2;
 Array2D<double> domain_bdr;
 Array2D<double> pml_lngth;
 Array2D<double> comp_domain_bdr;
@@ -86,8 +85,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&src, "-src", "--source wave", "Source wave flag -" 
-                  "1: plane wave, 2: Point source, 3: sin in x direction");
    args.Parse();
    if (!args.Good())
    {
@@ -109,21 +106,22 @@ int main(int argc, char *argv[])
    //    and volume meshes with the same code.
 
    Mesh *mesh;
-   prob = scatter;
-   // prob = waveguide;
+   // prob = scatter;
+   prob = waveguide;
 
    if (prob == scatter)
    {
-      mesh_file = "solvers-dev/meshes/square_w_hole.mesh";
+      mesh_file = "../data/square_w_hole.mesh";
       // mesh_file = "meshes/hexa728.mesh";
       // mesh_file ="../data/square-disc.mesh";
       mesh = new Mesh(mesh_file,1,1);
-      src = 3;
    }
    if (prob == waveguide)
    {
-      mesh = new Mesh(1, 1, 8, Element::HEXAHEDRON, true, 1, 1, 8, false);
-      src = 1;
+      // mesh = new Mesh(8, 1, 1, Element::HEXAHEDRON, true, 8, 1, 1, false);
+      // mesh_file= "../data/beam-hex.mesh";
+      // mesh = new Mesh(mesh_file,1,1);
+      mesh = new Mesh(8, 1, 1, Element::HEXAHEDRON, true, 8, 1, 1, false);
    }
    
    dim = mesh->Dimension();
@@ -262,7 +260,6 @@ int main(int argc, char *argv[])
    // superlu->Mult(B, X);
 
    // cout << "Total number of elements: " << elems_pml.Size() << endl;
-   
    // cout << "pml layer elements: " << elems_pml.Size() - elems_pml.Sum(); cout << endl;
    // cout << "computational domain elements: " << elems_pml.Sum(); cout << endl;
 
@@ -288,7 +285,7 @@ int main(int argc, char *argv[])
 
 
    // Compute error
-   if (prob == scatter && src == 3)
+   // if (prob == scatter)
    {
       int order_quad = max(2, 2 * order + 1);
       const IntegrationRule *irs[Geometry::NumGeom];
@@ -309,14 +306,11 @@ int main(int argc, char *argv[])
       {
          cout << " Real Part: || E_h - E || / ||E|| = " << L2Error_Re / norm_E_Re << '\n' << endl;
          cout << " Imag Part: || E_h - E || / ||E|| = " << L2Error_Im / norm_E_Im << '\n' << endl;
-
          cout << " Real Part: || E_h - E || = " << L2Error_Re << '\n' << endl;
          cout << " Imag Part: || E_h - E || = " << L2Error_Im << '\n' << endl;
+         cout << "Total Error  = " << sqrt(L2Error_Re*L2Error_Re + L2Error_Im*L2Error_Im) << endl;
       }
    }
-
-
-
 
    // 16. Send the solution by socket to a GLVis server.
    if (visualization)
@@ -332,30 +326,50 @@ int main(int argc, char *argv[])
       }
       char vishost[] = "localhost";
       int visport = 19916;
-      // socketstream src_sock_re(vishost, visport);
-      // src_sock_re << "parallel " << num_procs << " " << myid << "\n";
-      // src_sock_re.precision(8);
-      // src_sock_re << "solution\n" << *pmesh << x_gf.real() << keys <<"window_title 'Source real part'" << flush;
+      socketstream src_sock_re(vishost, visport);
+      src_sock_re << "parallel " << num_procs << " " << myid << "\n";
+      src_sock_re.precision(8);
+      src_sock_re << "solution\n" << *pmesh << x_gf.real() << keys <<"window_title 'Source real part'" << flush;
 
-      // MPI_Barrier(MPI_COMM_WORLD);
-      // socketstream src_sock_im(vishost, visport);
-      // src_sock_im << "parallel " << num_procs << " " << myid << "\n";
-      // src_sock_im.precision(8);
-      // src_sock_im << "solution\n" << *pmesh << x_gf.imag() << keys <<"window_title 'Source imag part'" << flush;
+      MPI_Barrier(MPI_COMM_WORLD);
+      socketstream src_sock_im(vishost, visport);
+      src_sock_im << "parallel " << num_procs << " " << myid << "\n";
+      src_sock_im.precision(8);
+      src_sock_im << "solution\n" << *pmesh << x_gf.imag() << keys <<"window_title 'Source imag part'" << flush;
 
-      // MPI_Barrier(MPI_COMM_WORLD);
-      // socketstream sol_sock_re(vishost, visport);
-      // sol_sock_re << "parallel " << num_procs << " " << myid << "\n";
-      // sol_sock_re.precision(8);
-      // sol_sock_re << "solution\n" << *pmesh << x.real() << keys <<"window_title 'Solution real part'" << flush;
+      MPI_Barrier(MPI_COMM_WORLD);
+      socketstream sol_sock_re(vishost, visport);
+      sol_sock_re << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock_re.precision(8);
+      sol_sock_re << "solution\n" << *pmesh << x.real() << keys <<"window_title 'Solution real part'" << flush;
 
-      // MPI_Barrier(MPI_COMM_WORLD);
-      // socketstream sol_sock_im(vishost, visport);
-      // sol_sock_im << "parallel " << num_procs << " " << myid << "\n";
-      // sol_sock_im.precision(8);
-      // sol_sock_im << "solution\n" << *pmesh << x.imag() << keys <<"window_title 'Solution imag part'" << flush;
+      MPI_Barrier(MPI_COMM_WORLD);
+      socketstream sol_sock_im(vishost, visport);
+      sol_sock_im << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock_im.precision(8);
+      sol_sock_im << "solution\n" << *pmesh << x.imag() << keys <<"window_title 'Solution imag part'" << flush;
    
-      // MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(MPI_COMM_WORLD);
+      ParGridFunction u_err_re(fespace);
+      subtract(x.real(),x_gf.real(), u_err_re);
+      // u_err_re -= x_gf;
+      socketstream sol_sock_err_re(vishost, visport);
+      sol_sock_err_re << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock_err_re.precision(8);
+      sol_sock_err_re << "solution\n" << *pmesh << u_err_re << keys <<"window_title 'Error real part'" << flush;
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      ParGridFunction u_err_im(fespace);
+      subtract(x.imag(),x_gf.imag(), u_err_im);
+      // u_err_im -= x_gf;
+      socketstream sol_sock_err_im(vishost, visport);
+      sol_sock_err_im << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock_err_im.precision(8);
+      sol_sock_err_im << "solution\n" << *pmesh << u_err_im << keys <<"window_title 'Error real part'" << flush;
+
+
+
+      MPI_Barrier(MPI_COMM_WORLD);
    
    
       ParGridFunction x_t(fespace);
@@ -371,7 +385,7 @@ int main(int argc, char *argv[])
       if (myid == 0)
          cout << "GLVis visualization paused."
               << " Press space (in the GLVis window) to resume it.\n";
-      int num_frames = 32;
+      int num_frames = 64;
       int i = 0;
       while (sol_sock)
       {
@@ -460,9 +474,9 @@ void compute_pml_mesh_data(Mesh * mesh)
          comp_domain_bdr(i,0) = domain_bdr(i,0);
          comp_domain_bdr(i,1) = domain_bdr(i,1);
       }   
-      // pml only in the z direction
-      pml_lngth(2,1) = 0.125 * (domain_bdr(2,1) - domain_bdr(2,0));
-      comp_domain_bdr(2,1) = domain_bdr(2,1) - pml_lngth(2,1);
+      // pml only in the x direction
+      pml_lngth(0,1) = 0.125 * (domain_bdr(0,1) - domain_bdr(0,0));
+      comp_domain_bdr(0,1) = domain_bdr(0,1) - pml_lngth(0,1);
    }
 }
 
@@ -529,14 +543,14 @@ void maxwell_ess_data(const Vector &x, std::vector<std::complex<double>> &E)
    if (prob == waveguide) 
    {
       double k10 = sqrt(omega*omega - M_PI * M_PI);
-      E[0] = 0.0;
-      // E[1] = - zi * omega / M_PI * sin(M_PI* x(0)) * exp(-zi * k10 * x(2)); // T_10 mode
+      E[1] = - zi * omega / M_PI * sin(M_PI* x(2)) * exp(zi * k10 * x(0)); // T_10 mode
+      // E[1] = - zi * omega / M_PI * sin(M_PI* x(2)) * exp(-zi * k10 * x(0)); // T_10 mode
       // if (abs(x(2))<1e-13)
-         E[1] = - zi * 2.0 * sqrt(5.0) * sin(2.0 * M_PI* x(0)) * exp(-zi * k10 * x(2)); // T_20 mode
+         // E[1] = - zi * 2.0 * sqrt(5.0) * sin(2.0 * M_PI* x(0)) * exp(-zi * k10 * x(2)); // T_20 mode
          // E[1] = - zi * omega / M_PI * sin(M_PI* x(0)) * exp(-zi * k10 * x(2)); // T_10 mode
       //    E[1] =  2.0* x(0) * exp(-zi * omega * x(2)); 
    }
-   else // point source (scattering)
+   else if(prob == scatter) // point source (scattering)
    {
       Vector shift(dim);
       shift = 0.0;
@@ -639,7 +653,7 @@ void E_bdr_data_Re(const Vector &x, Vector &E)
       std::vector<std::complex<double>> Eval(E.Size());
       maxwell_ess_data(x, Eval);
       for (int i = 0; i < dim; ++i) E[i] = Eval[i].real();
-      if (abs(x(2)-domain_bdr(2,1)) < 1e-13 ) E = 0.0;
+      if (abs(x(0)-domain_bdr(0,1)) < 1e-13 ) E = 0.0;
    }
 }
 
@@ -672,7 +686,7 @@ void E_bdr_data_Im(const Vector &x, Vector &E)
       std::vector<std::complex<double>> Eval(E.Size());
       maxwell_ess_data(x, Eval);
       for (int i = 0; i < dim; ++i) E[i] = Eval[i].imag();
-      if (abs(x(2)-domain_bdr(2,1)) < 1e-13 ) E = 0.0;
+      if (abs(x(0)-domain_bdr(0,1)) < 1e-13 ) E = 0.0;
    }
 }
 
