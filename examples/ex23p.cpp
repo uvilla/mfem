@@ -106,8 +106,8 @@ int main(int argc, char *argv[])
    //    and volume meshes with the same code.
 
    Mesh *mesh;
-   // prob = scatter;
-   prob = waveguide;
+   prob = scatter;
+   // prob = waveguide;
 
    if (prob == scatter)
    {
@@ -285,7 +285,7 @@ int main(int argc, char *argv[])
 
 
    // Compute error
-   // if (prob == scatter)
+   if (prob == scatter || prob == waveguide)
    {
       int order_quad = max(2, 2 * order + 1);
       const IntegrationRule *irs[Geometry::NumGeom];
@@ -304,11 +304,9 @@ int main(int argc, char *argv[])
 
       if (myid == 0)
       {
-         cout << " Real Part: || E_h - E || / ||E|| = " << L2Error_Re / norm_E_Re << '\n' << endl;
-         cout << " Imag Part: || E_h - E || / ||E|| = " << L2Error_Im / norm_E_Im << '\n' << endl;
-         cout << " Real Part: || E_h - E || = " << L2Error_Re << '\n' << endl;
-         cout << " Imag Part: || E_h - E || = " << L2Error_Im << '\n' << endl;
-         cout << "Total Error  = " << sqrt(L2Error_Re*L2Error_Re + L2Error_Im*L2Error_Im) << endl;
+         cout << " Rel Error - Real Part: || E_h - E || / ||E|| = " << L2Error_Re / norm_E_Re << '\n' << endl;
+         cout << " Rel Error - Imag Part: || E_h - E || / ||E|| = " << L2Error_Im / norm_E_Im << '\n' << endl;
+         cout << " Total Error: " << sqrt(L2Error_Re*L2Error_Re + L2Error_Im*L2Error_Im) << endl;
       }
    }
 
@@ -527,7 +525,6 @@ void compute_pml_elem_list(ParMesh * pmesh, Array<int> & elem_pml)
       }   
       if (in_pml) elem_pml[i] = 0;
    }
-
 }
 
 
@@ -542,13 +539,15 @@ void maxwell_ess_data(const Vector &x, std::vector<std::complex<double>> &E)
 
    if (prob == waveguide) 
    {
-      double k10 = sqrt(omega*omega - M_PI * M_PI);
-      E[1] = - zi * omega / M_PI * sin(M_PI* x(2)) * exp(zi * k10 * x(0)); // T_10 mode
-      // E[1] = - zi * omega / M_PI * sin(M_PI* x(2)) * exp(-zi * k10 * x(0)); // T_10 mode
-      // if (abs(x(2))<1e-13)
-         // E[1] = - zi * 2.0 * sqrt(5.0) * sin(2.0 * M_PI* x(0)) * exp(-zi * k10 * x(2)); // T_20 mode
-         // E[1] = - zi * omega / M_PI * sin(M_PI* x(0)) * exp(-zi * k10 * x(2)); // T_10 mode
-      //    E[1] =  2.0* x(0) * exp(-zi * omega * x(2)); 
+      // double k10 = sqrt(omega*omega - M_PI * M_PI);
+      // E[1] = - zi * omega / M_PI * sin(M_PI* x(2)) * exp(zi * k10 * x(0)); // T_10 mode
+      // // normalize
+      double Ho = omega / M_PI;
+      // E[1] /= Ho;
+      double k20 = sqrt(omega*omega - 4.0 * M_PI * M_PI);
+      E[1] = - zi * omega / (2.0 * M_PI) * sin(2.0 * M_PI* x(2)) * exp(zi * k20 * x(0)); // T_20 mode
+      Ho = omega / (2.0 * M_PI);
+      E[1] /= Ho;
    }
    else if(prob == scatter) // point source (scattering)
    {
@@ -614,9 +613,6 @@ void maxwell_ess_data(const Vector &x, std::vector<std::complex<double>> &E)
 
          complex<double> alpha; 
          alpha = zi*omega / 4.0 / M_PI / omega / omega;
-         // E[0] = alpha * (val + val_xx/pow(omega,2.0));
-         // E[1] = alpha * (val_yx/pow(omega,2.0));
-         // E[2] = alpha * (val_zx/pow(omega,2.0));
          E[0] = alpha * (omega * omega * val + val_xx);
          E[1] = alpha * val_yx;
          E[2] = alpha * val_zx;
@@ -634,7 +630,6 @@ void E_bdr_data_Re(const Vector &x, Vector &E)
       for (int i = 0; i < dim; ++i)
       {
          // check if x(i) is in the computational domain or not
-         // if (x(i) < comp_domain_bdr(i,0) || x(i) > comp_domain_bdr(i,1))
          if (abs(x(i) - domain_bdr(i,0)) < 1e-13 || abs(x(i) - domain_bdr(i,1)) < 1e-13)
          {
             in_pml = true;
@@ -666,8 +661,6 @@ void E_bdr_data_Im(const Vector &x, Vector &E)
    {
       for (int i = 0; i < dim; ++i)
       {
-         // check if x(i) is in the computational domain or not
-         // if (x(i) < comp_domain_bdr(i,0) || x(i) > comp_domain_bdr(i,1))
          if (abs(x(i) - domain_bdr(i,0)) < 1e-13 || abs(x(i) - domain_bdr(i,1)) < 1e-13)
          {
             in_pml = true;
@@ -707,16 +700,16 @@ void pml_function(const Vector &x, std::vector<std::complex<double>> &dxs)
    for (int i = 0; i < dim; ++i)
    {
       for (int j=0; j<2; ++j)
-      if (x(i) >= comp_domain_bdr(i,1))
-      {
-         coeff = n * c / omega / pow(pml_lngth(i,1), n);
-         dxs[i] = one + zi * coeff * abs(pow(x(i) - comp_domain_bdr(i,1), n - 1.0));
-      }
-      if (x(i) <= comp_domain_bdr(i,0))
-      {
-         coeff = n * c / omega / pow(pml_lngth(i,0), n);
-         dxs[i] = one + zi * coeff * abs(pow(x(i) - comp_domain_bdr(i,0), n - 1.0));
-      }
+         if (x(i) >= comp_domain_bdr(i,1))
+         {
+            coeff = n * c / omega / pow(pml_lngth(i,1), n);
+            dxs[i] = one + zi * coeff * abs(pow(x(i) - comp_domain_bdr(i,1), n - 1.0));
+         }
+         if (x(i) <= comp_domain_bdr(i,0))
+         {
+            coeff = n * c / omega / pow(pml_lngth(i,0), n);
+            dxs[i] = one + zi * coeff * abs(pow(x(i) - comp_domain_bdr(i,0), n - 1.0));
+         }
    }
 }
 
