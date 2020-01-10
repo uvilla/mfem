@@ -21,11 +21,9 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include <boost/math/special_functions/hankel.hpp>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 using namespace std;
 using namespace mfem;
-using namespace boost;
 
 #ifndef MFEM_USE_SUPERLU
 #error This example requires that MFEM is built with MFEM_USE_SUPERLU=YES
@@ -563,11 +561,15 @@ void maxwell_ess_data(const Vector &x, std::vector<std::complex<double>> &E)
          double r = sqrt(x0 * x0 + x1 * x1);
          double beta = omega * r;
          
-         complex<double> Ho = boost::math::cyl_hankel_1(0,beta);
-         complex<double> Ho_r = - omega * boost::math::cyl_hankel_1(1,beta); 
-         complex<double> Ho_rr = - omega * omega * 
-                                 ( 1.0/beta * boost::math::cyl_hankel_1(1,beta) - 
-                                 boost::math::cyl_hankel_1(2,beta) ); 
+         // Ho = Jo(r) + i Yo(r)
+         // Ho_r  = - H_1 = - (J1(r) + i Y1(r))
+         // Ho_rr = - (i/r *(J1(r) + i Y1(r)) - (J2(r) + i y2(r)))
+         // GNU special functions (Bessel functions)
+         complex<double> Ho = j0(beta) + zi * y0(beta);
+         complex<double> Ho_r = - omega * (j1(beta) + zi * y1(beta)); 
+         complex<double> Ho_rr = -omega * omega * (1.0/beta * (j1(beta) + zi*y1(beta))
+                                 - (jn(2,beta) + zi * yn(2,beta)));
+
          // derivative with respect to x
          double r_x = x0 / r; 
          double r_y = x1 / r; 
@@ -700,6 +702,7 @@ void pml_function(const Vector &x, std::vector<std::complex<double>> &dxs)
    for (int i = 0; i < dim; ++i)
    {
       for (int j=0; j<2; ++j)
+      {
          if (x(i) >= comp_domain_bdr(i,1))
          {
             coeff = n * c / omega / pow(pml_lngth(i,1), n);
@@ -710,6 +713,7 @@ void pml_function(const Vector &x, std::vector<std::complex<double>> &dxs)
             coeff = n * c / omega / pow(pml_lngth(i,0), n);
             dxs[i] = one + zi * coeff * abs(pow(x(i) - comp_domain_bdr(i,0), n - 1.0));
          }
+      }
    }
 }
 
