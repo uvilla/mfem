@@ -38,9 +38,9 @@ libCEED support
 
 Meshing improvements
 --------------------
-- Added support for non-conforming prism AMR, including coarsening and parallel
-  load balancing. Anisotropic prism refinement is only available in the serial
-  version at the moment.
+- Added support for non-conforming AMR on prisms and tetrahedra, including
+  coarsening and parallel load balancing. Anisotropic prism refinement is only
+  available in the serial version at the moment.
 
 - Added support for GSLIB-FindPoints, a general high-order interpolation utility
   that can robustly evaluate a GridFunction in an arbitrary collection of points
