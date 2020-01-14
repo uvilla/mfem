@@ -90,6 +90,11 @@ Discretization improvements
 - The divergence and gradient bilinear integrators were added with full and
   partial assembly capabilities.
 
+- Added initial support for partially assembled NonlinearForms.
+
+- Added a nonlinear full and partial assembly enabled vector valued convection
+  integrator.
+
 Linear and nonlinear solvers
 ----------------------------
 - Added a general interface for specifying and solving nonlinear constrained

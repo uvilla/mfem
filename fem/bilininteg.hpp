@@ -40,6 +40,8 @@ public:
    // make sense for the action of the nonlinear operator (but they all make
    // sense for its Jacobian).
 
+   using NonlinearFormIntegrator::AssemblePA;
+
    /// Method defining partial assembly.
    /** The result of the partial assembly is stored internally so that it can be
        used later in the methods AddMultPA() and AddMultTransposePA(). */
@@ -1883,6 +1885,8 @@ public:
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
+
+   using BilinearFormIntegrator::AssemblePA;
 
    virtual void AssemblePA(const FiniteElementSpace &fes);
 
