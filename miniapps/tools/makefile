@@ -66,7 +66,7 @@ RUN_MPI = $(MFEM_MPIEXEC) $(MFEM_MPIEXEC_NP) $(MFEM_MPI_NP)
 	@$(call mfem-test,$<,, Tools miniapp)
 
 # Testing: Specific execution options
-# Do not test: display-basis, load-dc, convert-dc, lor-transfer
+# Do not test: display-basis, load-dc, convert-dc, get-values, lor-transfer
 NO_TEST_APPS = display-basis load-dc convert-dc get-values lor-transfer
 $(foreach app,$(NO_TEST_APPS),$(app)-test-seq $(app)-test-par):
 	@true
