@@ -95,6 +95,9 @@ Discretization improvements
 - Added a nonlinear full and partial assembly enabled vector valued convection
   integrator.
 
+- Extended the support for partial assembly to vector mass and vector diffusion
+  bilinear integrators.
+
 Linear and nonlinear solvers
 ----------------------------
 - Added a general interface for specifying and solving nonlinear constrained
