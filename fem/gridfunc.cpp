@@ -1612,7 +1612,7 @@ void GridFunction::ProjectCoefficient(
    int el = -1;
    ElementTransformation *T = NULL;
    const FiniteElement *fe = NULL;
-
+   this->HostReadWrite();
    for (int i = 0; i < dofs.Size(); i++)
    {
       int dof = dofs[i], j = fes->GetElementForDof(dof);

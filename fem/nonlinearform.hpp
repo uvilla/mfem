@@ -51,7 +51,11 @@ protected:
    /// The result of dynamic-casting P to SparseMatrix pointer.
    const SparseMatrix *cP; // not owned
 
-   bool Serial() const { return (!P || cP); }
+   bool serial;
+
+   void SetSerial();
+
+   bool Serial() const { return serial; }
    const Vector &Prolongate(const Vector &x) const;
 
 public:
@@ -62,7 +66,7 @@ public:
       : Operator(f->GetTrueVSize()), fes(f), Grad(NULL), cGrad(NULL),
         sequence(f->GetSequence()), P(f->GetProlongationMatrix()),
         cP(dynamic_cast<const SparseMatrix*>(P))
-   { }
+   { SetSerial(); }
 
    FiniteElementSpace *FESpace() { return fes; }
    const FiniteElementSpace *FESpace() const { return fes; }

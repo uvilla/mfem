@@ -14,6 +14,15 @@
 namespace mfem
 {
 
+void NonlinearForm::SetSerial()
+{
+#ifndef MFEM_USE_MPI
+   serial = true;
+#else
+   serial = !dynamic_cast<ParFiniteElementSpace*>(fes);
+#endif
+}
+
 void NonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                    Vector *rhs)
 {

@@ -301,7 +301,7 @@ void ParBilinearForm::FormLinearSystem(
    // eliminated part of the matrix.
    FormSystemMatrix(ess_tdof_list, A);
 
-   const Operator &P = *pfes->GetProlongationMatrix();
+   const Operator *P = pfes->GetProlongationMatrix();
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
 
    // Transform the system and perform the elimination in B, based on the
@@ -317,7 +317,14 @@ void ParBilinearForm::FormLinearSystem(
    {
       // Reduction to the Lagrange multipliers system
       HypreParVector true_X(pfes), true_B(pfes);
-      P.MultTranspose(b, true_B);
+      if(P)
+        {
+          P->MultTranspose(b, true_B);
+      }
+      else 
+      {
+        true_B.Vector::operator=(b);
+      }
       R.Mult(x, true_X);
       p_mat.EliminateBC(p_mat_e, ess_tdof_list, true_X, true_B);
       R.MultTranspose(true_B, b);
@@ -330,7 +337,14 @@ void ParBilinearForm::FormLinearSystem(
       // Variational restriction with P
       X.SetSize(pfes->TrueVSize());
       B.SetSize(X.Size());
-      P.MultTranspose(b, B);
+      if(P)
+      {
+         P->MultTranspose(b, B);
+      }
+      else 
+      {
+        B = b;
+      }
       R.Mult(x, X);
       p_mat.EliminateBC(p_mat_e, ess_tdof_list, X, B);
       if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
@@ -394,7 +408,7 @@ void ParBilinearForm::RecoverFEMSolution(
       return;
    }
 
-   const Operator &P = *pfes->GetProlongationMatrix();
+   const Operator *P = pfes->GetProlongationMatrix();
 
    if (static_cond)
    {
@@ -405,18 +419,39 @@ void ParBilinearForm::RecoverFEMSolution(
    {
       // Primal unknowns recovery
       HypreParVector true_X(pfes), true_B(pfes);
-      P.MultTranspose(b, true_B);
+      if(P)
+      {
+         P->MultTranspose(b, true_B);
+      }
+      else
+      {
+        true_B.Vector::operator=(b);
+      }
       const SparseMatrix &R = *pfes->GetRestrictionMatrix();
       R.Mult(x, true_X); // get essential b.c. from x
       hybridization->ComputeSolution(true_B, X, true_X);
-      x.SetSize(P.Height());
-      P.Mult(true_X, x);
+      if(P)
+      {
+         x.SetSize(P->Height());
+         P->Mult(true_X, x);
+      }
+      else
+      {
+        x = true_X;
+      }
    }
    else
    {
       // Apply conforming prolongation
-      x.SetSize(P.Height());
-      P.Mult(X, x);
+      if(P)
+      {
+        x.SetSize(P->Height());
+        P->Mult(X, x);
+      }
+      else
+      {
+        x = X;
+      }
    }
 }
 

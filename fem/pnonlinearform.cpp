@@ -46,7 +46,7 @@ double ParNonlinearForm::GetParGridFunctionEnergy(const Vector &x) const
 void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
 {
    NonlinearForm::Mult(x, y); // x --(P)--> aux1 --(A_local)--> aux2
-   Y.MakeRef(aux2, 0); // aux2 contains A_local.P.x
+   Y.MakeRef(P ? aux2 : y, 0); // aux2 contains A_local.P.x
 
    if (fnfi.Size())
    {
@@ -83,7 +83,10 @@ void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
       }
    }
 
-   P->MultTranspose(Y, y);
+   if(P)
+   {
+     P->MultTranspose(Y, y);
+   }
 
    for (int i = 0; i < ess_tdof_list.Size(); i++)
    {
